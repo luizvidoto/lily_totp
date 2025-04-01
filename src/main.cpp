@@ -3,19 +3,78 @@
 #include "OneButton.h"
 #include "pin_config.h"
 #include <TimeLib.h> // Funções: now(), hour(), minute(), second(), setTime()
-#include <TOTP.h>
-#include <Base32-Decode.h>
+#include <Base32.h>
 #include <Preferences.h>
+#include <Wire.h> 
+#include <RTClib.h>
+#include "mbedtls/md.h"
+
+int base32decode(const char *encoded, byte *result, int bufSize) {
+  int buffer = 0, bitsLeft = 0, count = 0;
+  const char *ptr = encoded;
+  while (*ptr && count < bufSize) {
+    uint8_t ch = *ptr++;
+
+    if (ch >= 'A' && ch <= 'Z') ch -= 'A';
+    else if (ch >= '2' && ch <= '7') ch -= '2' - 26;
+    else if (ch >= 'a' && ch <= 'z') ch -= 'a';
+    else continue;
+
+    buffer <<= 5;
+    buffer |= ch;
+    bitsLeft += 5;
+    if (bitsLeft >= 8) {
+      result[count++] = buffer >> (bitsLeft - 8);
+      bitsLeft -= 8;
+    }
+  }
+  return count; // retorna tamanho decodificado
+}
+
+#include "mbedtls/md.h"
+
+uint32_t generateTOTP(const uint8_t *key, size_t keyLength, uint64_t timestamp, uint32_t interval = 30) {
+  uint64_t counter = timestamp / interval;
+  
+  // ** MUITO IMPORTANTE: Big-endian **
+  uint8_t counterBytes[8];
+  for (int i = 7; i >= 0; i--) {
+    counterBytes[i] = counter & 0xFF;
+    counter >>= 8;
+  }
+
+  uint8_t hash[20];
+
+  mbedtls_md_context_t ctx;
+  mbedtls_md_init(&ctx);
+  mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA1), 1);
+  mbedtls_md_hmac_starts(&ctx, key, keyLength);
+  mbedtls_md_hmac_update(&ctx, counterBytes, 8);
+  mbedtls_md_hmac_finish(&ctx, hash);
+  mbedtls_md_free(&ctx);
+
+  int offset = hash[19] & 0x0F;
+  uint32_t binaryCode = ((hash[offset] & 0x7F) << 24)
+                      | ((hash[offset + 1] & 0xFF) << 16)
+                      | ((hash[offset + 2] & 0xFF) << 8)
+                      | (hash[offset + 3] & 0xFF);
+
+  return binaryCode % 1000000; // 6 dígitos padrão
+}
+
+
 
 // ---------------------------------------------------------------------------
 // CONFIGURAÇÃO DOS SERVIÇOS (NVS)
 // Suporte a até MAX_SERVICES
 #define MAX_SERVICES 300
+#define MAX_SECRET_B32_LENGTH 64  // ajuste conforme necessário
+#define MAX_SECRET_BIN_LENGTH 40  // ajuste conforme necessário
 
 struct TOTPService
 {
   char name[21];   // nome do serviço (até 20 caracteres)
-  char secret[21]; // chave em base32 (até 20 caracteres)
+  char secret[MAX_SECRET_B32_LENGTH]; // chave em base32 (até 20 caracteres)
 };
 
 TOTPService services[MAX_SERVICES];
@@ -24,11 +83,12 @@ int currentServiceIndex = 0; // Índice do serviço ativo
 
 // Variáveis temporárias para criação de novo serviço
 char tempServiceName[21];
-char tempServiceSecret[21];
+char tempServiceSecret[MAX_SECRET_B32_LENGTH];
 
 // ---------------------------------------------------------------------------
 // CONSTANTES E VARIÁVEIS GLOBAIS
 
+RTC_DS3231 rtc;
 TFT_eSPI tft = TFT_eSPI();
 OneButton btnDec(PIN_BUTTON_0, true);
 OneButton btnInc(PIN_BUTTON_1, true);
@@ -51,11 +111,13 @@ enum ScreenState
 ScreenState currentScreen = SCREEN_MENU; // Inicia no MENU principal
 
 // Variáveis para controle do TOTP
-unsigned char binKey[20];
-TOTP totp(binKey, 10);
+unsigned char binKey[MAX_SECRET_BIN_LENGTH];
+uint32_t codigoTOTP = 000000;
 char lastTOTP[7] = "";         // código TOTP atual
 uint32_t lastTOTPInterval = 0; // now()/TOTP_INTERVAL do último código gerado
 uint32_t lastUpdateTime = 0;   // controle de atualização do display
+uint32_t lastSyncTime = 0;    // controle de sincronização de tempo
+uint32_t lastMenuUpdateTime = 0;
 
 // Menu principal
 const int NUM_MENU_OPTIONS = 3;
@@ -86,14 +148,14 @@ float readBatteryVoltage()
 
 bool isBatteryMode()
 {
-  return (readBatteryVoltage() < 4.10); // Se tensão < 4.10V, está em bateria.
+  return (readBatteryVoltage() < 2.50); // Se tensão < 4.10V, está em bateria.
 }
 
 void drawBatteryIcon(int x, int y)
 {
   float voltage = readBatteryVoltage();
-  Serial.print("voltage: ");
-  Serial.println(voltage);
+  // Serial.print("voltage: ");
+  // Serial.println(voltage);
   bool plugged = (voltage >= 4.10); // Se ≥ 4.10V, assume plugado.
   if (plugged)
   {
@@ -223,27 +285,64 @@ void setBrightness(uint8_t value)
 // }
 
 static const unsigned char PROGMEM plugged_icon[] = {0x00, 0x00, 0x00, 0x0f, 0xff, 0xfe, 0x10, 0x00, 0x01, 0x10, 0x01, 0x01, 0x70, 0x07, 0x01, 0x80, 0x3d, 0xf1, 0x80, 0x61, 0x01, 0x87, 0xc1, 0x01, 0x80, 0x61, 0x01, 0x80, 0x3d, 0xf1, 0x70, 0x07, 0x01, 0x10, 0x01, 0x01, 0x10, 0x00, 0x01, 0x0f, 0xff, 0xfe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-void drawTOTPUI()
+void drawTOTPUI(bool staticDraw)
 {
-  tft.fillScreen(TFT_BLACK);
+  if(serviceCount == 0) {
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.setTextSize(2);
+    tft.drawString("Nenhum servico", 10, 30);
+    tft.drawString("cadastrado", 10, 60);
+    tft.drawString("Double-click para menu", 10, 100);
+    return;
+  }
 
-  tft.setTextSize(2);
   tft.setFreeFont();
-  tft.drawString("00:05:57", 225, 156);
 
-  tft.drawBitmap(295, 0, plugged_icon, 24, 16, 0xFFFF);
+  if (staticDraw) {
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextSize(2);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawString(services[currentServiceIndex].name, 3, 3);
 
-  tft.drawString("GotHub", 3, 3);
+    // Desenha icone bateria
+    // drawBatteryIcon(tft.width() - textWidth - 40, 10);
+    tft.drawBitmap(295, 0, plugged_icon, 24, 16, 0xFFFF);
 
-  tft.drawRoundRect(39, 99, 243, 15, 2, 0xFFFF);
+    // Desenha time remaining bar
+    tft.drawRoundRect(39, 99, 243, 15, 2, TFT_WHITE); //border
 
+    // Desenha texto explicativo canto inferior esquerdo
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawString("Long press para deletar", 4, 159);
+  }
+
+  // Desenha código TOTP
+  tft.fillRect(106, 42, 109, 25, TFT_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setTextSize(3);
-  tft.drawString("987654", 108, 65);
+  tft.drawString(lastTOTP, 108, 44);
 
-  tft.setTextSize(1);
-  tft.drawString("Long press para deletar", 4, 159);
+  // Desenha barra móvel de tempo
+  // tft.fillRect(41, 101, 187, 11, TFT_WHITE); //static
+  long nowTime = now();
+  int barW = 239, barH = 11;
+  uint32_t secondsElapsed = nowTime % TOTP_INTERVAL;
+  uint32_t secondsRemaining = TOTP_INTERVAL - secondsElapsed;
+  int progress = constrain(map(secondsRemaining, 0, TOTP_INTERVAL, 0, barW), 0, barW);
+  tft.fillRect(41, 101, barW, barH, TFT_BLACK);
+  tft.fillRect(41, 101, progress, barH, TFT_WHITE);
 
-  tft.fillRect(41, 101, 187, 11, 0xFFFF);
+  // Desenha relógio no canto inferior direito
+  char timeStr[9];
+  sprintf(timeStr, "%02d:%02d:%02d", hour(now()), minute(now()), second(now()));
+  int textWidth = tft.textWidth(timeStr);
+  // tft.fillRect(tft.width() - (textWidth + 50), 0, textWidth + 50, 30, TFT_BLACK);
+  tft.fillRect(224, 154, 96, 17, TFT_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setTextSize(2);
+  tft.drawString(timeStr, 225, 156);
 }
 
 void drawMenuUI()
@@ -430,15 +529,28 @@ void saveNewService(const char *nome, const char *secret)
 // ---------------------------------------------------------------------------
 // FUNÇÕES DE SERVIÇOS
 
-void setCurrentService(int index)
-{
-  if (serviceCount == 0)
-    return;
+void setCurrentService(int index) {
+  if (serviceCount == 0) return;
   currentServiceIndex = index;
-  base32decode(services[index].secret, binKey, sizeof(binKey));
-  totp = TOTP(binKey, 10);
-  lastTOTP[0] = '\0';
+
+  byte binKey[64];
+  int decodedLen = base32decode(services[index].secret, binKey, sizeof(binKey));
+
+  if (decodedLen <= 0) {
+    Serial.println("Erro no decode Base32!");
+    showErrorScreen("Erro na chave");
+    return;
+  }
+
+  uint32_t novoCodigoTOTP = generateTOTP(binKey, decodedLen, rtc.now().unixtime());
+  codigoTOTP = novoCodigoTOTP;
+
+  Serial.print("Novo TOTP gerado (sem lib externa): ");
+  Serial.println(novoCodigoTOTP);
 }
+
+
+
 
 void addNewService(const char *nome, const char *secret)
 {
@@ -488,6 +600,10 @@ void processNewServiceJSON()
   if (Serial.available() > 0)
   {
     String input = Serial.readStringUntil('\n');
+    
+    Serial.print("JSON recebido: ");
+    Serial.println(input);
+
     input.trim();
     if (input.length() == 0)
       return;
@@ -510,6 +626,13 @@ void processNewServiceJSON()
         String secretValue = input.substring(colonIndex + 1, endIndex);
         secretValue.replace("\"", "");
         secretValue.trim();
+
+        Serial.print("Secret extraído: [");
+        Serial.print(secretValue);
+        Serial.println("]");
+
+        Serial.print("Tamanho do secret: ");
+        Serial.println(secretValue.length());
 
         if (nameValue.length() > 0 && secretValue.length() > 0)
         {
@@ -599,7 +722,9 @@ void processEditTimeJSON()
               newYear >= 2000 && newYear <= 2100 &&
               newHour >= 0 && newHour < 24 && newMinute >= 0 && newMinute < 60 && newSecond >= 0 && newSecond < 60)
           {
-            setTime(newHour, newMinute, newSecond, newDay, newMonth, newYear);
+            rtc.adjust(DateTime(newYear, newMonth, newDay, newHour, newMinute, newSecond));
+            setTime(rtc.now().unixtime());  // Atualiza TimeLib após ajuste
+            // setTime(newHour, newMinute, newSecond, newDay, newMonth, newYear);
             showTimeUpdateSuccessScreen();
             currentScreen = SCREEN_MENU;
             drawMenuUI();
@@ -684,7 +809,7 @@ void onButtonIncClick()
     {
       currentServiceIndex = (currentServiceIndex + 1) % serviceCount;
       setCurrentService(currentServiceIndex);
-      drawTOTPUI();
+      drawTOTPUI(true);
     }
     break;
   case SCREEN_MENU:
@@ -703,7 +828,7 @@ void onButtonIncClick()
   case SCREEN_DELETE_CONFIRM:
     deleteCurrentService();
     currentScreen = SCREEN_TOTP;
-    drawTOTPUI();
+    drawTOTPUI(true);
     // updateTOTPDynamicUI();
     break;
   case SCREEN_CREATE_SERVICE_CONFIRM:
@@ -727,7 +852,7 @@ void onButtonDecClick()
     {
       currentServiceIndex = (currentServiceIndex - 1 + serviceCount) % serviceCount;
       setCurrentService(currentServiceIndex);
-      drawTOTPUI();
+      drawTOTPUI(true);
     }
     break;
   case SCREEN_MENU:
@@ -745,8 +870,7 @@ void onButtonDecClick()
     break;
   case SCREEN_DELETE_CONFIRM:
     currentScreen = SCREEN_TOTP;
-    drawTOTPUI();
-    // updateTOTPDynamicUI();
+    drawTOTPUI(true);
     break;
   case SCREEN_CREATE_SERVICE_CONFIRM:
     currentScreen = SCREEN_MENU;
@@ -778,7 +902,7 @@ void onButtonIncLongPress()
     else if (currentMenuIndex == 1)
     {
       currentScreen = SCREEN_TOTP;
-      drawTOTPUI();
+      drawTOTPUI(true);
     }
     else if (currentMenuIndex == 2)
     {
@@ -818,10 +942,33 @@ void onButtonIncDoubleClick()
 }
 
 // ---------------------------------------------------------------------------
+// FUNÇÃO PARA ATUALIZAR O CÓDIGO TOTP
+void updateTOTPCode(){
+  //implement
+  setCurrentService(currentServiceIndex);
+}
+
+// ---------------------------------------------------------------------------
 // SETUP E LOOP
+
 
 void setup()
 {
+  Wire.begin(PIN_IIC_SDA, PIN_IIC_SCL);
+  Serial.begin(115200);
+  delay(500);
+  Serial.println("[SETUP] Iniciando...");
+
+  if (!rtc.begin())
+  {
+    Serial.println("Couldn't find RTC");
+    showErrorScreen("RTC não encontrado");
+    while (1)
+      ;
+  }
+
+  setTime(rtc.now().unixtime());
+
   pinMode(PIN_POWER_ON, OUTPUT);
   digitalWrite(PIN_POWER_ON, HIGH);
 
@@ -854,10 +1001,31 @@ void setup()
   drawMenuUI();
   lastInteractionTime = millis();
 
-  Serial.begin(115200);
+  
+  DateTime rtcNow = rtc.now();
+  Serial.print("[SETUP] RTC atual: ");
+  Serial.println(rtcNow.unixtime());
+  
+  const char *testSecret = "XJDYWLU4BTHFGW2BZCBFZGBB7VFZCZMAVCCQQQENZAHZGUHNO4DA";
+  byte binKeyTest[64];
+  int decodedLen = base32decode(testSecret, binKeyTest, sizeof(binKeyTest));
+
+  Serial.print("[SETUP] Tamanho decodificado: ");
+  Serial.println(decodedLen);
+  Serial.print("[SETUP] Chave decodificada (HEX): ");
+  for (int i = 0; i < decodedLen; i++) {
+    if (binKeyTest[i] < 16) Serial.print("0");
+    Serial.print(binKeyTest[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.println();
+
+  codigoTOTP = generateTOTP(binKeyTest, decodedLen, rtc.now().unixtime());
+  Serial.print("[SETUP] Teste TOTP: ");
+  Serial.println(codigoTOTP);
+
 }
 
-uint32_t lastMenuUpdateTime = 0;
 
 void loop()
 {
@@ -878,7 +1046,8 @@ void loop()
   if (currentScreen == SCREEN_TOTP && (millis() - lastUpdateTime >= 1000))
   {
     lastUpdateTime = millis();
-    // updateTOTPDynamicUI();
+    updateTOTPCode();
+    drawTOTPUI(false);
   }
 
   if (currentScreen == SCREEN_MENU && (currentMillis - lastMenuUpdateTime >= 1000))
@@ -898,4 +1067,11 @@ void loop()
       setBrightness(currentBrightness);
     }
   }
+
+  if (millis() - lastSyncTime > 60000) {  // A cada 60s
+    setTime(rtc.now().unixtime());
+    lastSyncTime = millis();
+  }
+  
 }
+
