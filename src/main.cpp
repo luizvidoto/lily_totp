@@ -16,6 +16,18 @@ const size_t MAX_SERVICE_NAME_LEN = 20;
 const size_t MAX_SECRET_B32_LEN = 64;
 const size_t MAX_SECRET_BIN_LEN = 40;
 
+// --- Variáveis Globais ---
+int current_menu_index = 0;
+int menu_top_visible_index = 0; // << NOVO: Índice do primeiro item visível
+const int VISIBLE_MENU_ITEMS = 3; // << NOVO: Quantos itens mostrar
+
+// --- Variáveis para Animação do Menu ---
+int menu_highlight_y_current = -1; // Posição Y atual do destaque (-1 = não iniciado)
+int menu_highlight_y_target = -1;  // Posição Y alvo do destaque
+unsigned long menu_animation_start_time = 0;
+const int MENU_ANIMATION_DURATION_MS = 150; // Duração da animação (ms)
+bool is_menu_animating = false;
+
 // --- Constantes da Interface Gráfica ---
 #define SCREEN_WIDTH tft.width()
 #define SCREEN_HEIGHT tft.height()
@@ -116,7 +128,6 @@ char temp_service_name[MAX_SERVICE_NAME_LEN + 1];
 char temp_service_secret[MAX_SECRET_B32_LEN + 1];
 int edit_time_field = 0;
 int edit_hour, edit_minute, edit_second;
-int current_menu_index = 0;
 char message_buffer[100];
 uint16_t message_color = COLOR_FG;
 
@@ -254,29 +265,35 @@ void loop() {
 
     power_updateScreenBrightness();
 
-    bool needs_update = false;
+    bool needs_regular_update = false;
     if (current_millis - last_screen_update_time >= 1000) {
-        needs_update = true;
+        needs_regular_update = true;
         last_screen_update_time = current_millis;
-        power_updateBatteryStatus(); // Atualiza status bateria para header
+        power_updateBatteryStatus();
         if (current_screen == SCREEN_TOTP_VIEW && service_count > 0) {
-            updateCurrentTOTP(); // Atualiza lógica TOTP
+            updateCurrentTOTP();
         }
     }
 
-    // Redesenha a tela (header dinâmico + conteúdo específico) apenas se necessário
-    if (needs_update) {
-         ui_drawScreen(false);
+    // Redesenha se for a atualização regular OU se o menu estiver animando
+    if (needs_regular_update || is_menu_animating) {
+         ui_drawScreen(false); // Redesenha dinamicamente
     }
 
-    delay(10);
+    // Delay menor para permitir animação suave
+    delay(10); // Ajuste conforme necessário (impacta responsividade vs CPU)
 }
 
 // --- Funções Core ---
 void changeScreen(ScreenState new_screen) {
+    is_menu_animating = false; // Para animação se sair do menu
+    menu_highlight_y_current = -1; // Reseta posição inicial
     current_screen = new_screen;
     Serial.printf("[SCREEN] Mudando para estado: %d\n", new_screen);
-    ui_drawScreen(true); // FORÇA redesenho COMPLETO ao mudar de tela
+    if (new_screen == SCREEN_MENU_MAIN) { // Ao entrar no menu, centraliza a view se possível
+         menu_top_visible_index = max(0, min(current_menu_index - VISIBLE_MENU_ITEMS / 2, NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS));
+    }
+    ui_drawScreen(true); // FORÇA redesenho COMPLETO
     last_interaction_time = millis();
 }
 void updateTimeLibFromRTC() { setTime(rtc.now().unixtime()); }
@@ -303,10 +320,241 @@ void power_setBrightness(uint8_t v){ const uint8_t MAX_LVL=16; static uint8_t cu
 void power_updateScreenBrightness(){ uint8_t target; if(battery_info.is_usb_powered) target=BRIGHTNESS_USB; else target=(millis()-last_interaction_time > INACTIVITY_TIMEOUT_MS)?BRIGHTNESS_DIMMED:BRIGHTNESS_BATTERY; power_setBrightness(target); }
 
 // --- Callbacks Botões ---
-void btn_prev_click(){ last_interaction_time = millis(); bool r=true; switch(current_screen){ case SCREEN_TOTP_VIEW: if(service_count>0){current_service_index=(current_service_index-1+service_count)%service_count; decodeCurrentServiceKey();} else r=false; break; case SCREEN_MENU_MAIN: current_menu_index=(current_menu_index-1+NUM_MENU_OPTIONS)%NUM_MENU_OPTIONS; break; case SCREEN_TIME_EDIT: if(edit_time_field==0) edit_hour=(edit_hour-1+24)%24; else if(edit_time_field==1) edit_minute=(edit_minute-1+60)%60; else if(edit_time_field==2) edit_second=(edit_second-1+60)%60; break; case SCREEN_TIMEZONE_EDIT: gmt_offset--; if(gmt_offset<-12) gmt_offset=14; break; case SCREEN_SERVICE_DELETE_CONFIRM: case SCREEN_SERVICE_ADD_CONFIRM: changeScreen(SCREEN_MENU_MAIN); r=false; break; default: r=false; break; } if(r) ui_drawScreen(true); }
-void btn_next_click(){ last_interaction_time = millis(); bool r=true; switch(current_screen){ case SCREEN_TOTP_VIEW: if(service_count>0){current_service_index=(current_service_index+1)%service_count; decodeCurrentServiceKey();} else r=false; break; case SCREEN_MENU_MAIN: current_menu_index=(current_menu_index+1)%NUM_MENU_OPTIONS; break; case SCREEN_TIME_EDIT: if(edit_time_field==0) edit_hour=(edit_hour+1)%24; else if(edit_time_field==1) edit_minute=(edit_minute+1)%60; else if(edit_time_field==2) edit_second=(edit_second+1)%60; break; case SCREEN_TIMEZONE_EDIT: gmt_offset++; if(gmt_offset>14) gmt_offset=-12; break; case SCREEN_SERVICE_DELETE_CONFIRM: if(storage_deleteService(current_service_index)) ui_showTemporaryMessage("Servico Deletado",COLOR_SUCCESS,2000); else ui_showTemporaryMessage("Erro ao Deletar",COLOR_ERROR,2000); changeScreen(SCREEN_TOTP_VIEW); r=false; break; case SCREEN_SERVICE_ADD_CONFIRM: if(storage_saveService(temp_service_name,temp_service_secret)){ui_showTemporaryMessage("Servico Adicionado!",COLOR_SUCCESS,2000); current_service_index=service_count-1; decodeCurrentServiceKey(); changeScreen(SCREEN_TOTP_VIEW);} else {ui_showTemporaryMessage("Erro ao Salvar!",COLOR_ERROR,2000); changeScreen(SCREEN_MENU_MAIN);} r=false; break; default: r=false; break;} if(r) ui_drawScreen(true); }
-void btn_next_double_click(){ last_interaction_time=millis(); if(current_screen!=SCREEN_MENU_MAIN) changeScreen(SCREEN_MENU_MAIN); }
-void btn_next_long_press_start(){ last_interaction_time=millis(); switch(current_screen){ case SCREEN_TOTP_VIEW: if(service_count>0) changeScreen(SCREEN_SERVICE_DELETE_CONFIRM); break; case SCREEN_MENU_MAIN: switch(current_menu_index){ case 0: changeScreen(SCREEN_SERVICE_ADD_WAIT); break; case 1: if(service_count>0) changeScreen(SCREEN_TOTP_VIEW); else ui_showTemporaryMessage("Nenhum servico...",COLOR_ACCENT,2000); break; case 2: edit_hour=hour(); edit_minute=minute(); edit_second=second(); edit_time_field=0; changeScreen(SCREEN_TIME_EDIT); break; case 3: changeScreen(SCREEN_TIMEZONE_EDIT); break; } break; case SCREEN_TIME_EDIT: edit_time_field++; if(edit_time_field>2){setTime(edit_hour,edit_minute,edit_second,day(),month(),year()); updateRTCFromSystem(); time_t local_t=now()+gmt_offset*3600; snprintf(message_buffer,sizeof(message_buffer),"Hora Ajustada:\n%02d:%02d:%02d",hour(local_t),minute(local_t),second(local_t)); ui_showTemporaryMessage(message_buffer,COLOR_SUCCESS,2500); /* changeScreen called by message */} else {ui_drawScreen(true);} break; case SCREEN_TIMEZONE_EDIT: preferences.begin("totp-app",false); preferences.putInt(NVS_TZ_OFFSET_KEY,gmt_offset); preferences.end(); snprintf(message_buffer,sizeof(message_buffer),"Fuso Salvo:\nGMT %+d",gmt_offset); ui_showTemporaryMessage(message_buffer,COLOR_SUCCESS,2000); /* changeScreen called by message */ break; default: break;} }
+void btn_prev_click() {
+    last_interaction_time = millis();
+    bool redraw = true;
+
+    switch (current_screen) {
+        case SCREEN_TOTP_VIEW:
+            if (service_count > 0) {
+                current_service_index = (current_service_index - 1 + service_count) % service_count;
+                decodeCurrentServiceKey();
+            } else {
+                redraw = false;
+            }
+            break;
+
+        case SCREEN_MENU_MAIN:
+            if (NUM_MENU_OPTIONS > 0) {
+                int old_visible_pos = current_menu_index - menu_top_visible_index;
+                int old_highlight_y = UI_MENU_START_Y + old_visible_pos * (UI_MENU_ITEM_HEIGHT + 5);
+
+                current_menu_index = (current_menu_index - 1 + NUM_MENU_OPTIONS) % NUM_MENU_OPTIONS;
+
+                // Lógica de rolagem para cima
+                if (current_menu_index < menu_top_visible_index) {
+                    menu_top_visible_index = current_menu_index;
+                } else if (current_menu_index == NUM_MENU_OPTIONS - 1 && menu_top_visible_index > 0) {
+                     // Caso especial: Wrap around para cima, mostrar últimos itens
+                     menu_top_visible_index = max(0, NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS);
+                }
+                 menu_top_visible_index = max(0, menu_top_visible_index); // Garante não ser negativo
+
+                // Calcula nova posição alvo da animação
+                int new_visible_pos = current_menu_index - menu_top_visible_index;
+                int new_highlight_y = UI_MENU_START_Y + new_visible_pos * (UI_MENU_ITEM_HEIGHT + 5);
+
+                // Inicia animação se a posição mudou
+                if (menu_highlight_y_current != new_highlight_y) {
+                     if (menu_highlight_y_current == -1) menu_highlight_y_current = old_highlight_y; // Pega posição antiga se for a primeira vez
+                     menu_highlight_y_target = new_highlight_y;
+                     menu_animation_start_time = millis();
+                     is_menu_animating = true;
+                }
+            }
+            break;
+
+        case SCREEN_TIME_EDIT:
+            if (edit_time_field == 0) {
+                edit_hour = (edit_hour - 1 + 24) % 24;
+            } else if (edit_time_field == 1) {
+                edit_minute = (edit_minute - 1 + 60) % 60;
+            } else if (edit_time_field == 2) {
+                edit_second = (edit_second - 1 + 60) % 60;
+            }
+            break;
+
+        case SCREEN_TIMEZONE_EDIT:
+            gmt_offset--;
+            if (gmt_offset < -12) gmt_offset = 14;
+            break;
+
+        case SCREEN_SERVICE_DELETE_CONFIRM:
+        case SCREEN_SERVICE_ADD_CONFIRM:
+            changeScreen(SCREEN_MENU_MAIN);
+            redraw = false;
+            break;
+
+        default:
+            redraw = false;
+            break;
+    }
+
+    if (redraw) ui_drawScreen(true);
+}
+
+void btn_next_click() {
+    last_interaction_time = millis();
+    bool redraw = true;
+
+    switch (current_screen) {
+        case SCREEN_TOTP_VIEW:
+            if (service_count > 0) {
+                current_service_index = (current_service_index + 1) % service_count;
+                decodeCurrentServiceKey();
+            } else {
+                redraw = false;
+            }
+            break;
+
+            case SCREEN_MENU_MAIN:
+            if (NUM_MENU_OPTIONS > 0) {
+               int old_visible_pos = current_menu_index - menu_top_visible_index;
+               int old_highlight_y = UI_MENU_START_Y + old_visible_pos * (UI_MENU_ITEM_HEIGHT + 5);
+
+               current_menu_index = (current_menu_index + 1) % NUM_MENU_OPTIONS;
+
+               // Lógica de rolagem para baixo
+               if (current_menu_index >= menu_top_visible_index + VISIBLE_MENU_ITEMS) {
+                   menu_top_visible_index = current_menu_index - VISIBLE_MENU_ITEMS + 1;
+               } else if (current_menu_index == 0 && menu_top_visible_index != 0) {
+                    // Caso especial: Wrap around para baixo
+                    menu_top_visible_index = 0;
+               }
+               // Garante que top_index não ultrapasse o limite
+               menu_top_visible_index = min(menu_top_visible_index, max(0, NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS));
+
+
+               // Calcula nova posição alvo da animação
+               int new_visible_pos = current_menu_index - menu_top_visible_index;
+               int new_highlight_y = UI_MENU_START_Y + new_visible_pos * (UI_MENU_ITEM_HEIGHT + 5);
+
+               // Inicia animação se a posição mudou
+               if (menu_highlight_y_current != new_highlight_y) {
+                   if (menu_highlight_y_current == -1) menu_highlight_y_current = old_highlight_y; // Pega posição antiga se for a primeira vez
+                   menu_highlight_y_target = new_highlight_y;
+                   menu_animation_start_time = millis();
+                   is_menu_animating = true;
+               }
+           }
+            break;
+
+        case SCREEN_TIME_EDIT:
+            if (edit_time_field == 0) {
+                edit_hour = (edit_hour + 1) % 24;
+            } else if (edit_time_field == 1) {
+                edit_minute = (edit_minute + 1) % 60;
+            } else if (edit_time_field == 2) {
+                edit_second = (edit_second + 1) % 60;
+            }
+            break;
+
+        case SCREEN_TIMEZONE_EDIT:
+            gmt_offset++;
+            if (gmt_offset > 14) gmt_offset = -12;
+            break;
+
+        case SCREEN_SERVICE_DELETE_CONFIRM:
+            if (storage_deleteService(current_service_index)) {
+                ui_showTemporaryMessage("Servico Deletado", COLOR_SUCCESS, 2000);
+            } else {
+                ui_showTemporaryMessage("Erro ao Deletar", COLOR_ERROR, 2000);
+            }
+            changeScreen(SCREEN_TOTP_VIEW);
+            redraw = false;
+            break;
+
+        case SCREEN_SERVICE_ADD_CONFIRM:
+            if (storage_saveService(temp_service_name, temp_service_secret)) {
+                ui_showTemporaryMessage("Servico Adicionado!", COLOR_SUCCESS, 2000);
+                current_service_index = service_count - 1;
+                decodeCurrentServiceKey();
+                changeScreen(SCREEN_TOTP_VIEW);
+            } else {
+                ui_showTemporaryMessage("Erro ao Salvar!", COLOR_ERROR, 2000);
+                changeScreen(SCREEN_MENU_MAIN);
+            }
+            redraw = false;
+            break;
+
+        default:
+            redraw = false;
+            break;
+    }
+
+    if (redraw) ui_drawScreen(true);
+}
+
+void btn_next_double_click() {
+    last_interaction_time = millis();
+    if (current_screen != SCREEN_MENU_MAIN) {
+        changeScreen(SCREEN_MENU_MAIN);
+    }
+}
+
+void btn_next_long_press_start() {
+    last_interaction_time = millis();
+
+    switch (current_screen) {
+        case SCREEN_TOTP_VIEW:
+            if (service_count > 0) {
+                changeScreen(SCREEN_SERVICE_DELETE_CONFIRM);
+            }
+            break;
+
+        case SCREEN_MENU_MAIN:
+            switch (current_menu_index) {
+                case 0:
+                    changeScreen(SCREEN_SERVICE_ADD_WAIT);
+                    break;
+                case 1:
+                    if (service_count > 0) {
+                        changeScreen(SCREEN_TOTP_VIEW);
+                    } else {
+                        ui_showTemporaryMessage("Nenhum servico...", COLOR_ACCENT, 2000);
+                    }
+                    break;
+                case 2:
+                    edit_hour = hour();
+                    edit_minute = minute();
+                    edit_second = second();
+                    edit_time_field = 0;
+                    changeScreen(SCREEN_TIME_EDIT);
+                    break;
+                case 3:
+                    changeScreen(SCREEN_TIMEZONE_EDIT);
+                    break;
+            }
+            break;
+
+        case SCREEN_TIME_EDIT:
+            edit_time_field++;
+            if (edit_time_field > 2) {
+                setTime(edit_hour, edit_minute, edit_second, day(), month(), year());
+                updateRTCFromSystem();
+                time_t local_time = now() + gmt_offset * 3600;
+                snprintf(message_buffer, sizeof(message_buffer), "Hora Ajustada:\n%02d:%02d:%02d",
+                         hour(local_time), minute(local_time), second(local_time));
+                ui_showTemporaryMessage(message_buffer, COLOR_SUCCESS, 2500);
+                // changeScreen called by message
+            } else {
+                ui_drawScreen(true);
+            }
+            break;
+
+        case SCREEN_TIMEZONE_EDIT:
+            preferences.begin("totp-app", false);
+            preferences.putInt(NVS_TZ_OFFSET_KEY, gmt_offset);
+            preferences.end();
+            snprintf(message_buffer, sizeof(message_buffer), "Fuso Salvo:\nGMT %+d", gmt_offset);
+            ui_showTemporaryMessage(message_buffer, COLOR_SUCCESS, 2000);
+            // changeScreen called by message
+            break;
+
+        default:
+            break;
+    }
+}
 
 // --- UI Drawing ---
 
@@ -429,24 +677,97 @@ void ui_drawScreenTOTPContent(bool full_redraw) {
 }
 
 void ui_drawScreenMenuContent(bool full_redraw) {
-    if (full_redraw) {
-        // Limpa área ABAIXO do header
-        tft.fillRect(0, UI_HEADER_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - UI_HEADER_HEIGHT, COLOR_BG);
-        // Desenha rodapé estático
-        tft.setTextDatum(BL_DATUM); tft.setTextColor(TFT_DARKGREY); tft.setTextSize(1);
-        char status_buf[30]; snprintf(status_buf, sizeof(status_buf), "Servicos: %d/%d", service_count, MAX_SERVICES);
-        tft.drawString(status_buf, UI_PADDING, SCREEN_HEIGHT - UI_PADDING / 2); // Posição rodapé
-        tft.setTextDatum(TL_DATUM); tft.setTextColor(COLOR_FG, COLOR_BG);
+    int item_y = UI_MENU_START_Y; // Y inicial abaixo do header
+    int item_spacing = 5;
+    int item_total_height = UI_MENU_ITEM_HEIGHT + item_spacing;
+
+    // --- Calcula posição da animação ---
+    if (is_menu_animating) {
+        unsigned long elapsed = millis() - menu_animation_start_time;
+        if (elapsed >= MENU_ANIMATION_DURATION_MS) {
+            menu_highlight_y_current = menu_highlight_y_target;
+            is_menu_animating = false;
+        } else {
+            // Animação simples (linear) - pode usar easing se quiser
+            float progress = (float)elapsed / MENU_ANIMATION_DURATION_MS;
+            // Ease-out-quad easing:
+            // float eased_progress = progress * (2.0f - progress);
+            // menu_highlight_y_current = menu_highlight_y_target + (menu_highlight_y_current - menu_highlight_y_target) * (1.0f - eased_progress);
+
+            // Linear interpolation:
+            menu_highlight_y_current = menu_highlight_y_target + (menu_highlight_y_current - menu_highlight_y_target) * (1.0f - progress);
+
+        }
+    } else if (menu_highlight_y_current == -1 && NUM_MENU_OPTIONS > 0) {
+         // Define posição inicial do highlight se ainda não foi definida
+         int initial_visible_pos = current_menu_index - menu_top_visible_index;
+         menu_highlight_y_current = UI_MENU_START_Y + initial_visible_pos * item_total_height;
+         menu_highlight_y_target = menu_highlight_y_current; // Garante que não tente animar inicialmente
     }
 
-    // Desenha itens do menu
-    tft.setTextSize(2); int item_y = UI_MENU_START_Y; // Y inicial abaixo do header
-    for (int i = 0; i < NUM_MENU_OPTIONS; i++) {
-         if (i == current_menu_index) { tft.fillRect(UI_PADDING, item_y, SCREEN_WIDTH - 2 * UI_PADDING, UI_MENU_ITEM_HEIGHT, COLOR_HIGHLIGHT_BG); tft.setTextColor(COLOR_HIGHLIGHT_FG); }
-         else { tft.fillRect(UI_PADDING, item_y, SCREEN_WIDTH - 2 * UI_PADDING, UI_MENU_ITEM_HEIGHT, COLOR_BG); tft.setTextColor(COLOR_FG); }
-         tft.setTextDatum(ML_DATUM); tft.drawString(menu_options[i], UI_PADDING * 3, item_y + UI_MENU_ITEM_HEIGHT / 2); item_y += UI_MENU_ITEM_HEIGHT + 5;
+
+    // --- Limpeza e Desenho dos Itens Visíveis ---
+    if (full_redraw) {
+        tft.fillRect(0, UI_HEADER_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - UI_HEADER_HEIGHT, COLOR_BG); // Limpa área conteúdo
+        // Rodapé
+        tft.setTextDatum(BL_DATUM); tft.setTextColor(TFT_DARKGREY); tft.setTextSize(1);
+        char status_buf[30]; snprintf(status_buf, sizeof(status_buf), "Servicos: %d/%d", service_count, MAX_SERVICES);
+        tft.drawString(status_buf, UI_PADDING, SCREEN_HEIGHT - UI_PADDING / 2);
+        tft.setTextDatum(TL_DATUM); tft.setTextColor(COLOR_FG, COLOR_BG);
+    } else {
+         // Limpa apenas a área dos itens visíveis + highlight para atualização parcial
+         tft.fillRect(UI_PADDING, item_y, SCREEN_WIDTH - 2 * UI_PADDING, VISIBLE_MENU_ITEMS * item_total_height, COLOR_BG);
     }
-    tft.setTextDatum(TL_DATUM); tft.setTextColor(COLOR_FG, COLOR_BG);
+
+
+    // Desenha o retângulo de destaque animado
+     if (menu_highlight_y_current != -1 && NUM_MENU_OPTIONS > 0) {
+        tft.fillRect(UI_PADDING, menu_highlight_y_current, SCREEN_WIDTH - 2 * UI_PADDING - 10, UI_MENU_ITEM_HEIGHT, COLOR_HIGHLIGHT_BG); // -10 para espaço da scrollbar
+     }
+
+
+    // Desenha os itens do menu visíveis
+    tft.setTextSize(2);
+    tft.setTextDatum(ML_DATUM);
+    int draw_count = 0;
+    for (int i = menu_top_visible_index; i < NUM_MENU_OPTIONS && draw_count < VISIBLE_MENU_ITEMS; ++i) {
+        int current_item_draw_y = item_y + draw_count * item_total_height;
+
+        // Define a cor do texto baseado se é o item atualmente selecionado (mesmo que o highlight esteja se movendo)
+         if (i == current_menu_index) {
+            tft.setTextColor(COLOR_HIGHLIGHT_FG); // Texto escuro sobre o highlight
+         } else {
+            tft.setTextColor(COLOR_FG); // Texto branco normal
+         }
+
+        tft.drawString(menu_options[i], UI_PADDING * 3, current_item_draw_y + UI_MENU_ITEM_HEIGHT / 2);
+        draw_count++;
+    }
+
+    // --- Desenha Barra de Rolagem ---
+    if (NUM_MENU_OPTIONS > VISIBLE_MENU_ITEMS) {
+        int scrollbar_x = SCREEN_WIDTH - UI_PADDING - 6; // Posição X da barra
+        int scrollbar_w = 4; // Largura da barra
+        int scrollbar_y = UI_MENU_START_Y; // Y inicial
+        int scrollbar_h = VISIBLE_MENU_ITEMS * item_total_height - item_spacing; // Altura total da área visível
+
+        // Desenha o trilho da barra
+        tft.fillRect(scrollbar_x, scrollbar_y, scrollbar_w, scrollbar_h, TFT_DARKGREY);
+
+        // Calcula tamanho e posição do "thumb" (indicador)
+        int thumb_h = max(5, scrollbar_h * VISIBLE_MENU_ITEMS / NUM_MENU_OPTIONS); // Altura proporcional, mínimo 5px
+        int thumb_max_y = scrollbar_h - thumb_h; // Máximo deslocamento Y do thumb
+        int thumb_y = scrollbar_y + round((float)thumb_max_y * menu_top_visible_index / (NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS));
+        thumb_y = constrain(thumb_y, scrollbar_y, scrollbar_y + thumb_max_y); // Garante limites
+
+        // Desenha o thumb
+        tft.fillRect(scrollbar_x, thumb_y, scrollbar_w, thumb_h, COLOR_ACCENT); // Cor de destaque
+    }
+
+    // Reseta configurações de texto
+    tft.setTextDatum(TL_DATUM);
+    tft.setTextColor(COLOR_FG, COLOR_BG);
+    tft.setTextSize(1);
 }
 
 void ui_drawScreenServiceAddWaitContent(bool full_redraw) {
