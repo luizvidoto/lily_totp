@@ -10,6 +10,12 @@
 #define LVGL_LCD_BUF_SIZE (EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES)
 #define EXAMPLE_PSRAM_DATA_ALIGNMENT 64
 
+#define SCK_PIN     10 
+#define MOSI_PIN    11 
+#define MISO_PIN    12 
+#define SDA_PIN     13 
+#define RST_PIN     21
+
 /*ESP32S3*/
 #define PIN_LCD_BL 38
 
@@ -40,7 +46,3 @@
 #define PIN_TOUCH_INT 16
 #define PIN_TOUCH_RES 21
 
-/* External expansion */
-#define PIN_SD_CMD 13
-#define PIN_SD_CLK 11
-#define PIN_SD_D0 12
