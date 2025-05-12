@@ -1,6 +1,5 @@
 #pragma once
 
-
 /* LCD CONFIG */
 // Too low or too high pixel clock may cause screen mosaic
 #define EXAMPLE_LCD_PIXEL_CLOCK_HZ (16 * 1000 * 1000)
@@ -45,4 +44,26 @@
 
 #define PIN_TOUCH_INT 16
 #define PIN_TOUCH_RES 21
+
+// Display Pins
+#define TFT_MOSI 35
+#define TFT_SCLK 36
+#define TFT_CS   34
+#define TFT_DC   21
+#define TFT_RST  47
+#define TFT_BL   48
+
+// Button Pins
+#define BTN_PREV 3
+#define BTN_NEXT 5
+#define BTN_SEL  4
+
+// Battery Monitor Pin
+#define PIN_VBAT 1
+
+// RFID Module Pins (if used)
+#define RFID_SDA 7
+#define RFID_SCL 15
+#define RFID_RST 6
+#define RFID_IRQ 16
 
