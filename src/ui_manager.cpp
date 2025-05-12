@@ -592,49 +592,75 @@ static void ui_draw_content_service_add_confirm(bool full_redraw) {
     }
 }
 
+// Dentro de ui_manager.cpp -> ui_draw_content_time_edit
 static void ui_draw_content_time_edit(bool full_redraw) {
     int content_y = UI_CONTENT_Y_START;
-    int content_h = tft.height() - content_y - (tft.fontHeight(1) + UI_PADDING);
+    int footer_h_approx = tft.fontHeight(1) + UI_PADDING;
+    int content_h = screen_height - content_y - footer_h_approx;
     int center_y_area = content_y + content_h / 2;
 
-    if (full_redraw) {
-        tft.fillRect(0, content_y, tft.width(), content_h, COLOR_BG); // Limpa área de conteúdo
+    // --- FORÇAR LIMPEZA COMPLETA DA ÁREA DE CONTEÚDO ---
+    tft.fillRect(0, content_y, screen_width, content_h, COLOR_BG);
+    // --- FIM DA LIMPEZA FORÇADA ---
 
-        tft.setTextColor(COLOR_DIM_TEXT, COLOR_BG);
-        tft.setTextSize(1);
-        tft.setTextDatum(MC_DATUM);
+    // Desenha os elementos estáticos (hints de JSON, fuso) sempre
+    tft.setTextColor(COLOR_DIM_TEXT, COLOR_BG);
+    tft.setTextSize(1);
+    tft.setTextDatum(MC_DATUM);
+    char tz_info_buf[40];
+    snprintf(tz_info_buf, sizeof(tz_info_buf), getText(StringID::STR_TIME_EDIT_INFO_FMT), gmt_offset);
+    int hints_y_start = center_y_area + tft.fontHeight(3) / 2 + 20; // Abaixo de onde a hora estará
+    tft.drawString(tz_info_buf, screen_width / 2, hints_y_start);
+    tft.drawString(getText(StringID::STR_TIME_EDIT_JSON_HINT), screen_width / 2, hints_y_start + 15);
+    tft.drawString(getText(StringID::STR_EXAMPLE_JSON_TIME), screen_width / 2, hints_y_start + 30);
 
-        char tz_info_buf[40];
-        snprintf(tz_info_buf, sizeof(tz_info_buf), getText(StringID::STR_TIME_EDIT_INFO_FMT), gmt_offset);
-        tft.drawString(tz_info_buf, tft.width() / 2, center_y_area + 45);
-        tft.drawString(getText(StringID::STR_TIME_EDIT_JSON_HINT), tft.width() / 2, center_y_area + 60);
-        tft.drawString(getText(StringID::STR_EXAMPLE_JSON_TIME), tft.width() / 2, center_y_area + 75);
-    } else {
-        // Limpa apenas a área da hora e do marcador para atualização parcial
-        tft.fillRect(0, center_y_area - 30, tft.width(), 60, COLOR_BG);
-    }
-
+    // --- Desenha a hora e o marcador ---
     tft.setTextDatum(MC_DATUM);
     tft.setTextColor(COLOR_FG, COLOR_BG);
     tft.setTextSize(3); // Tamanho grande para a hora
 
     char time_str_buf[12];
     snprintf(time_str_buf, sizeof(time_str_buf), "%02d:%02d:%02d", edit_hour, edit_minute, edit_second);
-    tft.drawString(time_str_buf, tft.width() / 2, center_y_area);
 
-    // Desenha marcador do campo selecionado
-    int field_width_hh = tft.textWidth("00", 3); // Largura de "HH" no tamanho 3
-    int separator_width = tft.textWidth(":", 3);
-    int total_time_width = 3 * field_width_hh + 2 * separator_width;
-    int time_start_x = (tft.width() - total_time_width) / 2;
+    // Desenha a string de hora centralizada (confiando no setTextDatum)
+    tft.drawString(time_str_buf, screen_width / 2, center_y_area);
 
-    int marker_x = time_start_x;
-    if (edit_time_field == 1) marker_x = time_start_x + field_width_hh + separator_width;
-    else if (edit_time_field == 2) marker_x = time_start_x + 2 * (field_width_hh + separator_width);
+    // --- USA LARGURAS ESTIMADAS PARA O MARCADOR ---
+    const int field_width_est = 48;      // <<< ESTIMATIVA para "00" (AJUSTE SE NECESSÁRIO)
+    const int separator_width_est = 12;  // <<< ESTIMATIVA para ":" (AJUSTE SE NECESSÁRIO)
+    const int total_time_width_est = 3 * field_width_est + 2 * separator_width_est; // Largura total estimada
+    const int time_start_x_est = (screen_width - total_time_width_est) / 2; // X inicial baseado em estimativas
+    const int font_height_est = 24; // <<< ESTIMATIVA para altura da fonte tamanho 3 (AJUSTE SE NECESSÁRIO)
 
-    int marker_y = center_y_area - tft.fontHeight(3)/2 - 6; // Acima do texto
-    int marker_h = 4;
-    tft.fillRect(marker_x, marker_y, field_width_hh, marker_h, COLOR_ACCENT);
+    // --- LOGS DE DEPURAÇÃO (v5 - Estimated Height) ---
+    Serial.printf("Time Edit Draw Debug (v5 - Estimated Height):\n");
+    Serial.printf("  screen_width: %d, center_y_area: %d\n", screen_width, center_y_area);
+    Serial.printf("  Estimates: FieldW=%d, SepW=%d, TotalW=%d, StartX=%d, FontH=%d\n",
+                  field_width_est, separator_width_est, total_time_width_est, time_start_x_est, font_height_est);
+    Serial.printf("  edit_time_field: %d\n", edit_time_field);
+    // --- FIM DOS LOGS ---
+
+    // Calcula X do marcador baseado no X inicial ESTIMADO e larguras ESTIMADAS
+    int marker_x = time_start_x_est; // Default para hora (campo 0)
+    if (edit_time_field == 1) { // Minuto
+        marker_x = time_start_x_est + field_width_est + separator_width_est;
+    } else if (edit_time_field == 2) { // Segundo
+        marker_x = time_start_x_est + 2 * (field_width_est + separator_width_est);
+    }
+
+    // Calcula marker_y usando a altura da fonte ESTIMADA
+    int marker_y = center_y_area + font_height_est / 2 - 2; // Abaixo do texto (USA font_height_est)
+    int marker_h = 4; // Altura do marcador
+
+    Serial.printf("  Calculated marker_x: %d, marker_y: %d\n", marker_x, marker_y);
+
+    // Verifica se as coordenadas são válidas (usa field_width_est para largura do marcador)
+    if (marker_x >= 0 && marker_x + field_width_est <= screen_width && marker_y >= 0 && marker_y + marker_h <= screen_height) {
+        tft.fillRect(marker_x, marker_y, field_width_est, marker_h, COLOR_ACCENT); // Desenha o marcador
+        Serial.println("  Marker drawn.");
+   } else {
+        Serial.printf("  [WARN] Marker coordinates out of screen!\n");
+   }
 
     tft.setTextDatum(TL_DATUM);
     tft.setTextSize(1);

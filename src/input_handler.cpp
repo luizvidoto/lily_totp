@@ -37,22 +37,47 @@ void input_tick() {
         input_process_serial();
     }
 
+    // Dentro de input_handler.cpp -> input_tick()
     // Gerenciamento da tela de mensagem (timer)
     if (current_screen == ScreenState::SCREEN_MESSAGE) {
-        // Verifica se a duração da mensagem expirou
-        // A interação do usuário (botões) NÃO cancela a mensagem por padrão aqui,
-        // mas poderia ser implementado se desejado.
-        static uint32_t message_start_time = 0;
-        if (previous_screen != ScreenState::SCREEN_MESSAGE) { // Acabou de entrar na tela de msg?
+        static uint32_t message_start_time = 0; 
+        static bool timer_started_for_this_message = false; // Flag auxiliar
+
+        // Inicia o timer apenas uma vez por mensagem
+        if (!timer_started_for_this_message) {
              message_start_time = millis();
+             timer_started_for_this_message = true; // Marca que o timer iniciou
+             // Serial.printf("[UI Message] Timer iniciado para %lu ms.\n", message_duration_ms);
         }
 
-        if (millis() - message_start_time >= message_duration_ms) {
-            // Tempo da mensagem acabou, volta para a tela definida
-            ui_change_screen(message_next_screen, true);
-            // Limpa estado da mensagem para evitar re-entrada imediata
+        // Verifica se a duração da mensagem expirou E se a duração é válida
+        if (message_duration_ms > 0 && (millis() - message_start_time >= message_duration_ms)) {
+            // Serial.println("[UI Message] Timer expirou.");
+            ScreenState next = message_next_screen; // Guarda a próxima tela
+            // --- IMPORTANTE: Zera a flag ANTES de mudar de tela ---
+            timer_started_for_this_message = false;
+            // --- Zera a duração APÓS guardar a próxima tela, mas ANTES de chamar change_screen
+            // --- para que a próxima verificação não entre aqui novamente por engano.
             message_duration_ms = 0;
+            // --- Muda para a próxima tela ---
+            ui_change_screen(next, true);
+            // NÃO zere message_duration_ms aqui novamente.
         }
+
+        // Verifica se a duração da mensagem expirou E se a duração não foi zerada por um clique
+        if (message_duration_ms > 0 && (millis() - message_start_time >= message_duration_ms)) {
+            // Serial.println("[UI Message] Timer expirou.");
+            ui_change_screen(message_next_screen, true); // Muda para a próxima tela
+            message_duration_ms = 0; // Reseta para evitar re-trigger imediato
+        }
+    } else {
+        // Se não estamos na tela de mensagem, garante que a flag do timer seja resetada
+        // para a próxima vez que entrarmos na tela de mensagem.
+        // static bool timer_started_for_this_message = false; // Declaração movida para dentro do if
+        // A linha acima não é necessária aqui se a declaração static estiver dentro do if.
+        // Se a declaração static for fora do if, descomente a linha abaixo:
+        // timer_started_for_this_message = false;
+        // -> A melhor abordagem é manter a declaração static DENTRO do if.
     }
 }
 
@@ -98,6 +123,20 @@ void input_process_serial() {
 // ---- Callbacks dos Botões ----
 
 static void btn_prev_click() {
+    if (current_screen == ScreenState::SCREEN_MESSAGE) {
+        ScreenState next = message_next_screen;
+        // --- Resetar estado da mensagem antes de mudar ---
+        message_duration_ms = 0;
+        // timer_started_for_this_message = false; // Resetar a flag do timer também
+        // -> Para resetar a flag static, precisamos acessá-la. É mais fácil
+        // -> deixar a lógica em input_tick() resetá-la quando sair da tela de msg.
+        // -> Apenas zerar a duração é suficiente para parar o timer.
+        // --- Fim do reset ---
+        ui_change_screen(next, true);
+        last_interaction_time = millis();
+        return;
+    }
+
     last_interaction_time = millis();
     bool needs_redraw = false; // Flag se a ação requer redesenho parcial/imediato
 
@@ -174,6 +213,20 @@ static void btn_prev_click() {
 }
 
 static void btn_next_click() {
+    if (current_screen == ScreenState::SCREEN_MESSAGE) {
+        ScreenState next = message_next_screen;
+        // --- Resetar estado da mensagem antes de mudar ---
+        message_duration_ms = 0;
+        // timer_started_for_this_message = false; // Resetar a flag do timer também
+        // -> Para resetar a flag static, precisamos acessá-la. É mais fácil
+        // -> deixar a lógica em input_tick() resetá-la quando sair da tela de msg.
+        // -> Apenas zerar a duração é suficiente para parar o timer.
+        // --- Fim do reset ---
+        ui_change_screen(next, true);
+        last_interaction_time = millis();
+        return;
+    }
+
     last_interaction_time = millis();
     bool needs_redraw = false;
 
@@ -271,6 +324,20 @@ static void btn_next_double_click() {
 }
 
 static void btn_next_long_press_start() {
+    if (current_screen == ScreenState::SCREEN_MESSAGE) {
+        ScreenState next = message_next_screen;
+        // --- Resetar estado da mensagem antes de mudar ---
+        message_duration_ms = 0;
+        // timer_started_for_this_message = false; // Resetar a flag do timer também
+        // -> Para resetar a flag static, precisamos acessá-la. É mais fácil
+        // -> deixar a lógica em input_tick() resetá-la quando sair da tela de msg.
+        // -> Apenas zerar a duração é suficiente para parar o timer.
+        // --- Fim do reset ---
+        ui_change_screen(next, true);
+        last_interaction_time = millis();
+        return;
+    }
+
     last_interaction_time = millis();
 
     switch (current_screen) {
