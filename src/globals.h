@@ -43,6 +43,7 @@ extern Language current_language;
 extern const LanguageStrings *current_strings_ptr; // Ponteiro para as strings do idioma atual
 
 // Variáveis temporárias para operações (adição de serviço, edição de tempo)
+extern int temp_gmt_offset;
 extern char temp_service_name[MAX_SERVICE_NAME_LEN + 1];
 extern char temp_service_secret[MAX_SECRET_B32_LEN + 1];
 extern int edit_time_field; // 0: hora, 1: minuto, 2: segundo

@@ -805,7 +805,7 @@ static void ui_draw_content_timezone_edit(bool full_redraw) {
     tft.setTextSize(3);
 
     char tz_str[15];
-    snprintf(tz_str, sizeof(tz_str), getText(StringID::STR_TIMEZONE_LABEL), gmt_offset);
+    snprintf(tz_str, sizeof(tz_str), getText(StringID::STR_TIMEZONE_LABEL), temp_gmt_offset);
     tft.drawString(tz_str, tft.width() / 2, center_y_area);
 
     tft.setTextDatum(TL_DATUM);

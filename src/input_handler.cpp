@@ -224,7 +224,10 @@ static void btn_prev_click() {
             break;
 
         case ScreenState::SCREEN_TIMEZONE_EDIT:
-            time_adjust_gmt_offset(-1); // Decrementa offset GMT
+            // Modifica a variável temporária
+            temp_gmt_offset += -1;
+            if (temp_gmt_offset < -12) temp_gmt_offset = 14;
+            if (temp_gmt_offset > 14) temp_gmt_offset = -12; // Garante wrap-around
             needs_redraw = true;
             break;
 
@@ -336,7 +339,10 @@ static void btn_next_click() {
             break;
 
         case ScreenState::SCREEN_TIMEZONE_EDIT:
-            time_adjust_gmt_offset(+1); // Incrementa offset GMT
+            // Modifica a variável temporária
+            temp_gmt_offset += 1;
+            if (temp_gmt_offset > 14) temp_gmt_offset = -12;
+            if (temp_gmt_offset < -12) temp_gmt_offset = 14; // Garante wrap-around
             needs_redraw = true;
             break;
 
@@ -438,6 +444,7 @@ static void btn_next_long_press_start() {
                         ui_change_screen(ScreenState::SCREEN_TIME_EDIT);
                         break;
                     case StringID::STR_MENU_ADJUST_TIMEZONE:
+                        temp_gmt_offset = gmt_offset;
                         ui_change_screen(ScreenState::SCREEN_TIMEZONE_EDIT);
                         break;
                     case StringID::STR_MENU_SELECT_LANGUAGE:
@@ -464,6 +471,7 @@ static void btn_next_long_press_start() {
 
         case ScreenState::SCREEN_TIMEZONE_EDIT:
             // Long press salva o fuso horário selecionado
+            gmt_offset = temp_gmt_offset;
             time_save_gmt_offset();
             ui_queue_message_fmt(StringID::STR_TIMEZONE_SAVED_FMT, COLOR_SUCCESS, 1500, ScreenState::SCREEN_MENU_MAIN, gmt_offset);
             break;

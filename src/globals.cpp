@@ -34,6 +34,7 @@ int gmt_offset = 0;
 Language current_language = Language::LANG_PT_BR; // Padrão
 const LanguageStrings *current_strings_ptr = nullptr; // Será definido em i18n.cpp
 
+int temp_gmt_offset = 0;
 char temp_service_name[MAX_SERVICE_NAME_LEN + 1];
 char temp_service_secret[MAX_SECRET_B32_LEN + 1];
 int edit_time_field = 0;
