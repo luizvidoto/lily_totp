@@ -278,30 +278,55 @@ static void btn_next_click() {
 
         case ScreenState::SCREEN_MENU_MAIN:
             if (NUM_MENU_OPTIONS > 0) {
-                int old_visible_pos = current_menu_index - menu_top_visible_index;
-                int old_highlight_y = UI_MENU_START_Y + old_visible_pos * (UI_MENU_ITEM_HEIGHT + UI_MENU_ITEM_SPACING);
+                int old_menu_index = current_menu_index;
+                int old_top_visible = menu_top_visible_index;
 
                 current_menu_index = (current_menu_index + 1) % NUM_MENU_OPTIONS;
 
-                // Lógica de rolagem para baixo
-                if (current_menu_index >= menu_top_visible_index + VISIBLE_MENU_ITEMS) {
-                    // Rola para baixo para manter o item selecionado visível (na última posição)
+                // --- LÓGICA DE ROLAGEM PARA BAIXO (REVISADA) ---
+                if (old_menu_index == NUM_MENU_OPTIONS - 1 && current_menu_index == 0) {
+                    // Caso especial: Estava no último e foi para o primeiro (wrap around para baixo)
+                    menu_top_visible_index = 0;
+                } else if (current_menu_index >= old_top_visible + VISIBLE_MENU_ITEMS) {
+                    // O item selecionado está abaixo da janela visível, rola para baixo
+                    // Faz o item selecionado ser o último na nova janela visível
                     menu_top_visible_index = current_menu_index - VISIBLE_MENU_ITEMS + 1;
-                } else if (current_menu_index == 0 && menu_top_visible_index != 0) {
-                    menu_top_visible_index = 0; // Voltou ao início
                 }
-                 menu_top_visible_index = min(menu_top_visible_index, max(0, NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS)); // Garante limite
+                // Se o item já está visível e não é wrap around, menu_top_visible_index não muda.
 
-                // Inicia animação
-                int new_visible_pos = current_menu_index - menu_top_visible_index;
-                int new_highlight_y = UI_MENU_START_Y + new_visible_pos * (UI_MENU_ITEM_HEIGHT + UI_MENU_ITEM_SPACING);
-                 if (menu_highlight_y_current != new_highlight_y) {
-                     if (menu_highlight_y_current == -1) menu_highlight_y_current = old_highlight_y;
-                     menu_highlight_y_anim_start = menu_highlight_y_current;
+                // Garante que menu_top_visible_index não saia dos limites
+                if (NUM_MENU_OPTIONS > VISIBLE_MENU_ITEMS) {
+                    menu_top_visible_index = max(0, menu_top_visible_index); // Não pode ser menor que 0
+                    menu_top_visible_index = min(menu_top_visible_index, NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS); // Não pode ser maior que o máximo possível
+                } else {
+                    menu_top_visible_index = 0; // Se todos os itens cabem, o topo é sempre 0
+                }
+
+                // --- LÓGICA DE ANIMAÇÃO (EXISTENTE, MAS VERIFICAR POSIÇÃO INICIAL) ---
+                int old_visible_pos_rel_to_old_top = old_menu_index - old_top_visible;
+                int old_highlight_y = UI_MENU_START_Y + old_visible_pos_rel_to_old_top * (UI_MENU_ITEM_HEIGHT + UI_MENU_ITEM_SPACING);
+
+                int new_visible_pos_rel_to_new_top = current_menu_index - menu_top_visible_index;
+                int new_highlight_y = UI_MENU_START_Y + new_visible_pos_rel_to_new_top * (UI_MENU_ITEM_HEIGHT + UI_MENU_ITEM_SPACING);
+
+                if (menu_highlight_y_current != new_highlight_y || old_top_visible != menu_top_visible_index) {
+                     if (menu_highlight_y_current == -1 || old_top_visible != menu_top_visible_index) {
+                        // Se o topo mudou (rolagem), ou é a primeira vez, ajusta o início da animação
+                        if (old_menu_index == NUM_MENU_OPTIONS - 1 && current_menu_index == 0) { // Wrap para baixo
+                            menu_highlight_y_anim_start = UI_MENU_START_Y + (VISIBLE_MENU_ITEMS * (UI_MENU_ITEM_HEIGHT + UI_MENU_ITEM_SPACING)); // "Abaixo" da última posição
+                        } else if (current_menu_index > old_menu_index) { // Movendo para baixo
+                            menu_highlight_y_anim_start = old_highlight_y;
+                        } else { // Caso inesperado
+                            menu_highlight_y_anim_start = new_highlight_y;
+                        }
+                     } else {
+                        menu_highlight_y_anim_start = menu_highlight_y_current;
+                     }
+
                      menu_highlight_y_target = new_highlight_y;
                      menu_animation_start_time = millis();
                      is_menu_animating = true;
-                 }
+                }
             }
             break;
 
