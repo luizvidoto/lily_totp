@@ -156,30 +156,64 @@ static void btn_prev_click() {
 
         case ScreenState::SCREEN_MENU_MAIN:
             if (NUM_MENU_OPTIONS > 0) {
-                int old_visible_pos = current_menu_index - menu_top_visible_index;
-                int old_highlight_y = UI_MENU_START_Y + old_visible_pos * (UI_MENU_ITEM_HEIGHT + UI_MENU_ITEM_SPACING);
+                int old_menu_index = current_menu_index; // Guarda o índice antes da mudança
+                int old_top_visible = menu_top_visible_index; // Guarda o topo visível antes
 
                 current_menu_index = (current_menu_index - 1 + NUM_MENU_OPTIONS) % NUM_MENU_OPTIONS;
 
-                // Lógica de rolagem para cima
-                if (current_menu_index < menu_top_visible_index) {
-                    menu_top_visible_index = current_menu_index; // Rola para mostrar o item no topo
-                } else if (current_menu_index == NUM_MENU_OPTIONS - 1 && menu_top_visible_index > 0) {
-                     // Se voltou para o último item vindo do primeiro, mostra os últimos
-                     menu_top_visible_index = max(0, NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS);
+                // --- LÓGICA DE ROLAGEM PARA CIMA (REVISADA) ---
+                if (old_menu_index == 0 && current_menu_index == NUM_MENU_OPTIONS - 1) {
+                    // Caso especial: Estava no primeiro e foi para o último (wrap around para cima)
+                    // Queremos que o último item fique visível, idealmente na última posição da janela.
+                    menu_top_visible_index = max(0, NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS);
+                } else if (current_menu_index < menu_top_visible_index) {
+                    // O item selecionado está acima da janela visível, rola para cima
+                    menu_top_visible_index = current_menu_index;
                 }
-                menu_top_visible_index = max(0, menu_top_visible_index); // Garante não negativo
+                // Não precisa de mais lógica aqui, pois se o item já está visível,
+                // menu_top_visible_index não deve mudar, a menos que seja o wrap around.
+                // A linha menu_top_visible_index = max(0, menu_top_visible_index); já garante não ser negativo.
 
-                // Inicia animação do highlight
-                int new_visible_pos = current_menu_index - menu_top_visible_index;
-                int new_highlight_y = UI_MENU_START_Y + new_visible_pos * (UI_MENU_ITEM_HEIGHT + UI_MENU_ITEM_SPACING);
-                if (menu_highlight_y_current != new_highlight_y) {
-                     if (menu_highlight_y_current == -1) menu_highlight_y_current = old_highlight_y; // Posição inicial se for a primeira vez
-                     menu_highlight_y_anim_start = menu_highlight_y_current; // Guarda posição inicial da animação
+                // Garante que menu_top_visible_index não seja negativo e não exceda o limite máximo
+                menu_top_visible_index = max(0, menu_top_visible_index);
+                if (NUM_MENU_OPTIONS > VISIBLE_MENU_ITEMS) { // Só limita se houver mais itens que o visível
+                    menu_top_visible_index = min(menu_top_visible_index, NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS);
+                } else {
+                    menu_top_visible_index = 0; // Se todos os itens cabem, o topo é sempre 0
+                }
+
+
+                // --- LÓGICA DE ANIMAÇÃO (EXISTENTE, MAS VERIFICAR POSIÇÃO INICIAL) ---
+                // Calcula a posição Y do item que estava selecionado ANTES da mudança,
+                // relativo ao menu_top_visible_index ANTES da mudança.
+                int old_visible_pos_rel_to_old_top = old_menu_index - old_top_visible;
+                int old_highlight_y = UI_MENU_START_Y + old_visible_pos_rel_to_old_top * (UI_MENU_ITEM_HEIGHT + UI_MENU_ITEM_SPACING);
+
+                // Calcula a nova posição Y do item AGORA selecionado,
+                // relativo ao NOVO menu_top_visible_index.
+                int new_visible_pos_rel_to_new_top = current_menu_index - menu_top_visible_index;
+                int new_highlight_y = UI_MENU_START_Y + new_visible_pos_rel_to_new_top * (UI_MENU_ITEM_HEIGHT + UI_MENU_ITEM_SPACING);
+
+                if (menu_highlight_y_current != new_highlight_y || old_top_visible != menu_top_visible_index) { // Anima se o Y ou o topo mudou
+                     if (menu_highlight_y_current == -1 || old_top_visible != menu_top_visible_index) {
+                         // Se o topo mudou, ou é a primeira vez, a "posição antiga" para animação
+                         // deve ser recalculada ou forçada para uma transição suave.
+                         // Para o wrap around, a animação pode ser de uma posição "fora da tela".
+                         // Vamos simplificar: se o topo mudou, a animação começa da borda.
+                         if (old_menu_index == 0 && current_menu_index == NUM_MENU_OPTIONS - 1) { // Wrap para cima
+                            menu_highlight_y_anim_start = UI_MENU_START_Y - (UI_MENU_ITEM_HEIGHT + UI_MENU_ITEM_SPACING); // "Acima" da primeira posição
+                         } else if (current_menu_index < old_menu_index) { // Movendo para cima
+                            menu_highlight_y_anim_start = old_highlight_y;
+                         } else { // Caso inesperado, usa a posição atual
+                            menu_highlight_y_anim_start = new_highlight_y;
+                         }
+                     } else {
+                        menu_highlight_y_anim_start = menu_highlight_y_current;
+                     }
+
                      menu_highlight_y_target = new_highlight_y;
                      menu_animation_start_time = millis();
                      is_menu_animating = true;
-                     // O loop principal e ui_draw_screen cuidarão do desenho da animação
                 }
             }
             break; // Animação cuidará do redraw

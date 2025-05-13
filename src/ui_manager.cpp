@@ -118,6 +118,11 @@ void ui_draw_screen(bool full_redraw) {
         return;
     }
 
+    // --- LIMPEZA INICIAL EM FULL REDRAW (EXCETO PARA MENSAGEM) ---
+    if (full_redraw) {
+        tft.fillScreen(COLOR_BG); // Limpa a tela inteira com a cor de fundo padrão
+    }
+
     // --- Header ---
     if (full_redraw) {
         // Desenha o título estático do header apenas no redraw completo
@@ -160,13 +165,13 @@ void ui_draw_screen(bool full_redraw) {
         const char* footer_str = ui_get_footer_string(current_screen);
         if (footer_str) { // Se houver um footer definido para esta tela
             ui_draw_footer(footer_str);
-        } else { // Limpa área do footer se não houver um
-            // Calcula altura aproximada do footer para limpar
-            uint8_t prev_size = tft.textsize;
-            tft.setTextSize(1);
-            int footer_h_approx = tft.fontHeight() + UI_PADDING;
-            tft.setTextSize(prev_size);
-            tft.fillRect(0, tft.height() - footer_h_approx, tft.width(), footer_h_approx, COLOR_BG);
+        } else { 
+            // Se não há footer, a área já foi limpa pelo fillScreen(COLOR_BG)
+            // uint8_t prev_size = tft.textsize;
+            // tft.setTextSize(1);
+            // int footer_h_approx = tft.fontHeight() + UI_PADDING;
+            // tft.setTextSize(prev_size);
+            // tft.fillRect(0, screen_height - footer_h_approx, screen_width, footer_h_approx, COLOR_BG); // Não mais necessário aqui
         }
     }
 }
@@ -232,25 +237,31 @@ static void ui_draw_header_dynamic_sprites() {
 
 // ---- Desenho do Footer ----
 static void ui_draw_footer(const char* footer_text) {
-    if (!footer_text || strlen(footer_text) == 0) return; // Não desenha se texto vazio
+    if (!footer_text || strlen(footer_text) == 0) return;
 
     uint8_t prev_datum = tft.getTextDatum();
     uint16_t prev_fg = tft.textcolor;
     uint16_t prev_bg = tft.textbgcolor;
     uint8_t prev_size = tft.textsize;
 
-    tft.setTextDatum(BC_DATUM); // Bottom Center
-    tft.setTextColor(COLOR_DIM_TEXT, COLOR_BG);
+    // Calcula a altura da área do rodapé para limpar corretamente
+    // Assume que o footer usa tamanho de texto 1
     tft.setTextSize(1);
+    int text_height = tft.fontHeight(); // Altura do texto no tamanho 1
+    int footer_area_h = text_height + UI_PADDING; // Altura total da área do footer
+    int footer_area_y = screen_height - footer_area_h; // Y inicial da área do footer
 
-    // Calcula a altura do texto para limpar a área do rodapé corretamente
-    int text_height = tft.fontHeight();
-    int footer_area_y = tft.height() - (text_height + UI_PADDING);
-    int footer_area_h = text_height + UI_PADDING;
-    tft.fillRect(0, footer_area_y, tft.width(), footer_area_h, COLOR_BG); // Limpa área do rodapé
+    // Limpa a área do rodapé com a cor de fundo principal
+    tft.fillRect(0, footer_area_y, screen_width, footer_area_h, COLOR_BG);
 
-    tft.drawString(footer_text, tft.width() / 2, UI_FOOTER_TEXT_Y);
+    // Configurações para desenhar o texto do rodapé
+    tft.setTextDatum(BC_DATUM);
+    tft.setTextColor(COLOR_DIM_TEXT, COLOR_BG); // Cor do texto e fundo para o texto
+    // tft.setTextSize(1); // Já definido acima
 
+    tft.drawString(footer_text, screen_width / 2, footer_text_y); // Usa a variável global footer_text_y
+
+    // Restaura estado do texto
     tft.setTextDatum(prev_datum);
     tft.setTextColor(prev_fg, prev_bg);
     tft.setTextSize(prev_size);
@@ -458,10 +469,23 @@ static void ui_draw_content_totp_view(bool full_redraw) {
     spr_progress_bar.pushSprite(progress_bar_x, progress_bar_sprite_y);
 }
 
+// Dentro de ui_manager.cpp
 static void ui_draw_content_menu_main(bool full_redraw) {
-    int item_y_start = UI_MENU_START_Y;
+    int item_y_start_abs = UI_MENU_START_Y; // Posição Y absoluta na tela
     int item_total_h = UI_MENU_ITEM_HEIGHT + UI_MENU_ITEM_SPACING;
-    int menu_area_h = VISIBLE_MENU_ITEMS * item_total_h - UI_MENU_ITEM_SPACING; // Altura total dos itens visíveis
+    int menu_content_width = screen_width; // Largura total da tela para o menu
+    int menu_content_height = screen_height - item_y_start_abs; // Altura da área do menu até o final da tela (inclui footer)
+
+    // --- DEFINIR VIEWPORT PARA A ÁREA DE CONTEÚDO DO MENU ---
+    // Isso evita que o highlight ou itens do menu sejam desenhados sobre o header ou abaixo do footer (se necessário)
+    // O Y do viewport é relativo à tela, então usamos item_y_start_abs.
+    // A altura do viewport deve cobrir apenas a área dos itens visíveis + scrollbar.
+    int visible_menu_area_height = VISIBLE_MENU_ITEMS * item_total_h;
+    tft.setViewport(0, item_y_start_abs, menu_content_width, visible_menu_area_height);
+
+
+    // Posições Y agora são relativas ao INÍCIO DO VIEWPORT (item_y_start_abs)
+    int item_y_start_viewport = 0; // Y inicial dentro do viewport é 0
 
     // --- Animação do Highlight ---
     if (is_menu_animating) {
@@ -471,66 +495,75 @@ static void ui_draw_content_menu_main(bool full_redraw) {
             is_menu_animating = false;
         } else {
             float progress = (float)elapsed / MENU_ANIMATION_DURATION_MS;
-            // Ease-out-quad: progress * (2 - progress) ou similar para suavizar
-            // progress = progress * (2.0f - progress); // Exemplo de easing
             menu_highlight_y_current = menu_highlight_y_anim_start + (int)((menu_highlight_y_target - menu_highlight_y_anim_start) * progress);
         }
     } else if (menu_highlight_y_current == -1 && NUM_MENU_OPTIONS > 0) {
-        // Posição inicial do highlight se ainda não definida
         int initial_visible_pos = current_menu_index - menu_top_visible_index;
-        menu_highlight_y_current = item_y_start + initial_visible_pos * item_total_h;
-        menu_highlight_y_target = menu_highlight_y_current; // Evita animação no primeiro desenho
+        // menu_highlight_y_current é a posição Y absoluta na tela
+        menu_highlight_y_current = item_y_start_abs + initial_visible_pos * item_total_h;
+        menu_highlight_y_target = menu_highlight_y_current;
     }
 
     // --- Limpeza e Desenho ---
+    // A limpeza agora ocorre dentro do viewport
     if (full_redraw) {
-        tft.fillRect(0, UI_CONTENT_Y_START, tft.width(), tft.height() - UI_CONTENT_Y_START, COLOR_BG); // Limpa toda área de conteúdo + footer
+        tft.fillRect(0, 0, menu_content_width, visible_menu_area_height, COLOR_BG); // Limpa toda área do viewport do menu
     } else {
-        // Limpa apenas a área dos itens do menu para atualizações parciais (animação)
-        tft.fillRect(UI_PADDING, item_y_start, tft.width() - 2 * UI_PADDING, menu_area_h, COLOR_BG);
+        tft.fillRect(UI_PADDING, 0, menu_content_width - 2 * UI_PADDING, visible_menu_area_height, COLOR_BG); // Limpa área dos itens no viewport
     }
 
     // Desenha o retângulo de destaque (highlight)
+    // As coordenadas Y do highlight (menu_highlight_y_current, _target, _anim_start)
+    // são ABSOLUTAS na tela. Precisamos convertê-las para relativas ao viewport.
+    int highlight_y_viewport = menu_highlight_y_current - item_y_start_abs;
+
     if (menu_highlight_y_current != -1 && NUM_MENU_OPTIONS > 0) {
-        tft.fillRect(UI_PADDING, menu_highlight_y_current, tft.width() - 2 * UI_PADDING - (NUM_MENU_OPTIONS > VISIBLE_MENU_ITEMS ? 10 : 0), UI_MENU_ITEM_HEIGHT, COLOR_HIGHLIGHT_BG);
+        // Desenha o highlight DENTRO do viewport
+        tft.fillRect(UI_PADDING, highlight_y_viewport,
+                     menu_content_width - 2 * UI_PADDING - (NUM_MENU_OPTIONS > VISIBLE_MENU_ITEMS ? 10 : 0),
+                     UI_MENU_ITEM_HEIGHT, COLOR_HIGHLIGHT_BG);
     }
 
     // Desenha os itens do menu visíveis
     tft.setTextSize(2);
-    tft.setTextDatum(ML_DATUM); // Middle Left
+    tft.setTextDatum(ML_DATUM);
     int drawn_items = 0;
     for (int i = menu_top_visible_index; i < NUM_MENU_OPTIONS && drawn_items < VISIBLE_MENU_ITEMS; ++i) {
-        int item_render_y = item_y_start + drawn_items * item_total_h;
-        tft.setTextColor((i == current_menu_index) ? COLOR_HIGHLIGHT_FG : COLOR_FG,
-                         (i == current_menu_index) ? COLOR_HIGHLIGHT_BG : COLOR_BG); // Define BG para anti-aliasing correto
+        // item_render_y_viewport é a posição Y do item DENTRO do viewport
+        int item_render_y_viewport = item_y_start_viewport + drawn_items * item_total_h;
 
-        // Adiciona um preenchimento para o texto não ficar colado na borda do highlight
-        tft.drawString(getText(menuOptionIDs[i]), UI_PADDING * 3, item_render_y + UI_MENU_ITEM_HEIGHT / 2);
+        tft.setTextColor((i == current_menu_index) ? COLOR_HIGHLIGHT_FG : COLOR_FG,
+                         (i == current_menu_index) ? COLOR_HIGHLIGHT_BG : COLOR_BG);
+
+        tft.drawString(getText(menuOptionIDs[i]), UI_PADDING * 3, item_render_y_viewport + UI_MENU_ITEM_HEIGHT / 2);
         drawn_items++;
     }
 
     // --- Barra de Rolagem ---
     if (NUM_MENU_OPTIONS > VISIBLE_MENU_ITEMS) {
-        int scrollbar_x = tft.width() - UI_PADDING - 6;
+        int scrollbar_x = menu_content_width - UI_PADDING - 6; // Relativo ao viewport
         int scrollbar_w = 4;
-        int scrollbar_track_y = item_y_start;
-        int scrollbar_track_h = menu_area_h;
+        int scrollbar_track_y_viewport = item_y_start_viewport; // Y inicial do trilho no viewport
+        int scrollbar_track_h = visible_menu_area_height - UI_MENU_ITEM_SPACING; // Altura do trilho
 
-        tft.fillRect(scrollbar_x, scrollbar_track_y, scrollbar_w, scrollbar_track_h, COLOR_DIM_TEXT); // Trilho
+        tft.fillRect(scrollbar_x, scrollbar_track_y_viewport, scrollbar_w, scrollbar_track_h, COLOR_DIM_TEXT); // Trilho
 
-        int thumb_h = max(10, scrollbar_track_h * VISIBLE_MENU_ITEMS / NUM_MENU_OPTIONS); // Altura proporcional do thumb
-        int thumb_max_y_offset = scrollbar_track_h - thumb_h; // Deslocamento máximo do thumb dentro do trilho
+        int thumb_h = max(10, scrollbar_track_h * VISIBLE_MENU_ITEMS / NUM_MENU_OPTIONS);
+        int thumb_max_y_offset = scrollbar_track_h - thumb_h;
 
         int thumb_y_offset = 0;
-        if (NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS > 0) { // Evita divisão por zero
+        if (NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS > 0) {
             thumb_y_offset = round((float)thumb_max_y_offset * menu_top_visible_index / (NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS));
         }
         thumb_y_offset = constrain(thumb_y_offset, 0, thumb_max_y_offset);
 
-        tft.fillRect(scrollbar_x, scrollbar_track_y + thumb_y_offset, scrollbar_w, thumb_h, COLOR_ACCENT); // Thumb
+        tft.fillRect(scrollbar_x, scrollbar_track_y_viewport + thumb_y_offset, scrollbar_w, thumb_h, COLOR_ACCENT); // Thumb
     }
 
-    // Restaura defaults de texto
+    // --- RESTAURAR VIEWPORT PARA A TELA INTEIRA ---
+    tft.resetViewport();
+
+    // Restaura defaults de texto (isso pode ser feito fora do viewport se afetar o footer)
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(COLOR_FG, COLOR_BG);
     tft.setTextSize(1);
