@@ -3,6 +3,7 @@
 #define POWER_UTILS_H
 
 #include <stdint.h> // Para uint8_t
+#include "types.h" // Add for BrightnessSettingToAdjust
 
 // ---- Inicialização ----
 // Configura pinos relacionados à energia (ex: POWER_ON, ADC da bateria, PWM do backlight).
@@ -22,5 +23,9 @@ void power_set_screen_brightness(uint8_t level);
 // Chama power_set_screen_brightness() para aplicar.
 // Deve ser chamado regularmente no loop.
 void power_update_target_brightness();
+
+// Novas funções para carregar/salvar configurações de brilho
+void power_load_brightness_settings();
+void power_save_brightness_setting(BrightnessSettingToAdjust setting, uint8_t value);
 
 #endif // POWER_UTILS_H

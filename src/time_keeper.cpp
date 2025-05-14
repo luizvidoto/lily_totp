@@ -106,23 +106,22 @@ void time_set_from_json(JsonDocument& doc) {
         return;
     }
 
-    int y = doc["year"];
-    int mo = doc["month"];
-    int d = doc["day"];
-    int h = doc["hour"];
-    int m = doc["minute"];
-    int s = doc["second"];
+    int year = doc["year"].as<int>();
+    int month = doc["month"].as<int>();
+    int day = doc["day"].as<int>();
+    int hour_val = doc["hour"].as<int>();
+    int minute_val = doc["minute"].as<int>();
+    int second_val = doc["second"].as<int>();
 
-    // Validação dos intervalos dos valores
-    // (Uma validação mais robusta consideraria dias por mês, anos bissextos, mas para um ajuste simples isso é ok)
-    if (y < 2023 || y > 2100 || mo < 1 || mo > 12 || d < 1 || d > 31 ||
-        h < 0 || h > 23 || m < 0 || m > 59 || s < 0 || s > 59) {
-        ui_queue_message(getText(StringID::STR_ERROR_TIME_VALUES_INVALID), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN);
+    // Validação básica dos valores
+    if (year < 2000 || year > 2099 || month < 1 || month > 12 || day < 1 || day > 31 ||
+        hour_val < 0 || hour_val > 23 || minute_val < 0 || minute_val > 59 || second_val < 0 || second_val > 59) {
+        ui_queue_message(getText(StringID::STR_ERROR_INVALID_DATETIME), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN);
         return;
     }
 
     // Se tudo OK, define a hora do sistema (TimeLib) como UTC e atualiza o RTC
-    setTime(h, m, s, d, mo, y);
+    setTime(hour_val, minute_val, second_val, day, month, year);
     time_sync_to_rtc();
 
     // Mostra mensagem de sucesso com a hora LOCAL ajustada

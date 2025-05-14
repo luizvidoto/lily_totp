@@ -13,7 +13,7 @@
 bool totp_decode_current_service_key() {
     if (service_count <= 0 || current_service_index < 0 || current_service_index >= service_count) {
         current_totp.valid_key = false;
-        snprintf(current_totp.code, sizeof(current_totp.code), "%s", getText(StringID::STR_TOTP_CODE_ERROR_PLACEHOLDER));
+        snprintf(current_totp.code, sizeof(current_totp.code), "%s", getText(StringID::STR_TOTP_CODE_PLACEHOLDER));
         // Serial.println("[TOTP] totp_decode_current_service_key: Índice de serviço inválido ou sem serviços.");
         return false;
     }
@@ -63,7 +63,7 @@ void totp_update_current_code() {
              snprintf(current_totp.code, sizeof(current_totp.code), "%s", getText(StringID::STR_ERROR_NO_SERVICES));
         } else if (strlen(current_totp.code) == 0 || strcmp(current_totp.code, "000000") == 0) {
             // Se por algum motivo o código está vazio ou zerado e a chave é inválida, põe o placeholder
-            snprintf(current_totp.code, sizeof(current_totp.code), "%s", getText(StringID::STR_TOTP_CODE_ERROR_PLACEHOLDER));
+            snprintf(current_totp.code, sizeof(current_totp.code), "%s", getText(StringID::STR_TOTP_CODE_PLACEHOLDER));
         }
         return;
     }

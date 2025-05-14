@@ -13,6 +13,35 @@ static int progress_bar_width = 0;
 static int progress_bar_x = 0;
 static int footer_text_y = 0;
 
+// ---- Icon Bitmaps ----
+// Provided by user
+static const unsigned char PROGMEM codes_menu_icon[] = {0x3f,0xff,0x00,0x40,0x00,0x80,0x80,0x00,0x40,0x8f,0xfc,0x40,0x9f,0xfe,0x40,0x9f,0xfe,0x40,0x8f,0xfc,0x40,0x80,0x00,0x40,0x80,0x00,0x40,0x9c,0x36,0x40,0x9c,0x36,0x40,0x80,0x00,0x40,0x40,0x00,0x80,0x3f,0xff,0x00}; // New codes icon (pager-like)
+static const unsigned char PROGMEM image_pager_icon_bits[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x03,0xff,0xff,0xff,0xff,0xc0,0x07,0xff,0xff,0xff,0xff,0xe0,0x0f,0xff,0xff,0xff,0xff,0xf0,0x1f,0xff,0xff,0xff,0xff,0xf8,0x1f,0x00,0x00,0x00,0x00,0xf8,0x1e,0x00,0x00,0x00,0x00,0x78,0x1e,0x00,0x08,0x00,0x00,0x78,0x1e,0x3b,0xde,0x37,0x90,0x78,0x1e,0x28,0x42,0x56,0x30,0x78,0x1e,0x08,0xcc,0xd7,0xbc,0x78,0x1e,0x09,0x82,0xf0,0xe4,0x78,0x1e,0x0b,0xde,0x17,0xbc,0x78,0x1e,0x0b,0xcc,0x13,0x10,0x78,0x1e,0x00,0x00,0x00,0x00,0x78,0x1f,0x00,0x00,0x00,0x00,0xf8,0x1f,0xff,0xff,0xff,0xff,0xf8,0x1f,0xff,0xff,0xff,0xff,0xf8,0x1f,0xff,0xff,0xff,0xff,0xf8,0x1f,0xff,0xff,0xff,0xff,0xf8,0x1f,0x00,0x7e,0x1f,0xc3,0xf8,0x1e,0x00,0x7c,0x0f,0x81,0xf8,0x1e,0xff,0x3c,0x0f,0x81,0xf8,0x1e,0x7f,0x3c,0x0f,0x81,0xf8,0x1e,0x00,0x7e,0x0f,0xc1,0xf8,0x1f,0x00,0xff,0x3f,0xe7,0xf8,0x1f,0xff,0xff,0xff,0xff,0xf8,0x1f,0xff,0xff,0xff,0xff,0xf8,0x0f,0xff,0xff,0xff,0xff,0xf0,0x0f,0xff,0xff,0xff,0xff,0xe0,0x03,0xff,0xff,0xff,0xff,0xc0,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+static const unsigned char PROGMEM image_config_icon_bits[] = {0x03,0xc0,0x12,0x48,0x2c,0x34,0x40,0x02,0x23,0xc4,0x24,0x24,0xc8,0x13,0x88,0x11,0x88,0x11,0xc8,0x13,0x24,0x24,0x23,0xc4,0x40,0x02,0x2c,0x34,0x12,0x48,0x03,0xc0};
+static const unsigned char PROGMEM image_date_icon_bits[] = {0x00,0x00,0x09,0x20,0x7f,0xfc,0xc9,0x26,0x80,0x02,0x8c,0x22,0x92,0x62,0x92,0xa2,0x82,0x22,0x84,0x22,0x88,0x22,0x90,0x22,0x9e,0xf2,0xc0,0x06,0x7f,0xfc,0x00,0x00};
+static const unsigned char PROGMEM image_lang_icon_bits[] = {0x01,0x00,0x03,0x80,0x03,0x80,0x07,0xc0,0x0f,0xe0,0x0f,0xe0,0x1f,0xf0,0x3f,0xf8,0x7f,0xfc,0x3f,0xf8,0x1f,0xf0,0x0f,0xe0,0x0f,0xe0,0x07,0xc0,0x03,0x80,0x01,0x00};
+static const unsigned char PROGMEM image_rfid_icon_bits[] = {0x01,0xf0,0x02,0x08,0x04,0x34,0x04,0x4a,0x04,0x4a,0x04,0x32,0x04,0x02,0x08,0x02,0x12,0x04,0x25,0xf8,0x4b,0x00,0x94,0x00,0xac,0x00,0x90,0x00,0xf0,0x00,0x00,0x00};
+static const unsigned char PROGMEM image_zones_icon_bits[] = {0x00,0x07,0x70,0x09,0x8e,0x11,0xc1,0xa2,0x30,0x44,0x0c,0x08,0x03,0x10,0x01,0x08,0x02,0xc8,0x05,0x44,0x7a,0x24,0x8c,0x24,0x64,0x12,0x14,0x12,0x14,0x0a,0x08,0x0c};
+static const unsigned char PROGMEM image_padlock_icon_bits[] = {0x0f,0x80,0x10,0x40,0x27,0x20,0x48,0x90,0x50,0x50,0x50,0x50,0x7f,0xf0,0xc0,0x18,0xa7,0x28,0x88,0x88,0x88,0x88,0x85,0x08,0x85,0x08,0xa2,0x28,0xc0,0x18,0x7f,0xf0};
+
+// Icon dimensions
+const int ICON_PAGER_WIDTH = 48; // New pager icon dimensions
+const int ICON_PAGER_HEIGHT = 32;
+const int ICON_NEW_CODES_WIDTH = 24; // New codes icon (pager-like) dimensions
+const int ICON_NEW_CODES_HEIGHT = 15;
+const int ICON_DEFAULT_WIDTH = 16;
+const int ICON_DEFAULT_HEIGHT = 16;
+const int ICON_PADLOCK_WIDTH = 16;
+const int ICON_PADLOCK_HEIGHT = 16;
+
+// Helper function to reverse bits in a byte
+static uint8_t reverse_byte_bits(uint8_t b) {
+   b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
+   b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
+   b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
+   return b;
+}
+
 // Protótipos de funções de desenho específicas de cada tela (internas)
 static void ui_draw_header_static(const char* title_text);
 static void ui_draw_header_dynamic_sprites();
@@ -29,6 +58,16 @@ static void ui_draw_content_timezone_edit(bool full_redraw);
 static void ui_draw_content_language_select(bool full_redraw);
 static void ui_draw_content_message(bool full_redraw); // Tela de mensagem é especial
 static void ui_draw_content_read_rfid(bool full_redraw);
+static void ui_draw_content_locked(bool full_redraw); // New lock screen content function
+static void ui_draw_content_manage_cards(bool full_redraw); // New manage cards screen
+static void ui_draw_content_add_card_wait(bool full_redraw);
+static void ui_draw_content_add_card_confirm(bool full_redraw);
+static void ui_draw_content_delete_card_confirm(bool full_redraw);
+static void ui_draw_content_config_menu(bool full_redraw); // New config submenu
+static void ui_draw_content_adjust_lock_timeout(bool full_redraw); // New adjust lock timeout screen
+static void ui_draw_content_brightness_menu(bool full_redraw);       // New brightness selection menu
+static void ui_draw_content_adjust_brightness_value(bool full_redraw); // New adjust brightness value screen
+static void ui_draw_content_setup_first_card(bool full_redraw); // New: Setup first card screen
 
 
 // ---- Funções de Inicialização da UI ----
@@ -138,6 +177,7 @@ void ui_draw_screen(bool full_redraw) {
     // Cada função de conteúdo é responsável por limpar sua área se full_redraw for true.
     switch (current_screen) {
         case ScreenState::SCREEN_STARTUP:                   ui_draw_content_startup(full_redraw); break;
+        case ScreenState::SCREEN_LOCKED:                    ui_draw_content_locked(full_redraw); break; // Call new lock screen function
         case ScreenState::SCREEN_TOTP_VIEW:                 ui_draw_content_totp_view(full_redraw); break;
         case ScreenState::SCREEN_MENU_MAIN:                 ui_draw_content_menu_main(full_redraw); break;
         case ScreenState::SCREEN_SERVICE_ADD_WAIT:          ui_draw_content_service_add_wait(full_redraw); break;
@@ -147,6 +187,15 @@ void ui_draw_screen(bool full_redraw) {
         case ScreenState::SCREEN_TIMEZONE_EDIT:             ui_draw_content_timezone_edit(full_redraw); break;
         case ScreenState::SCREEN_LANGUAGE_SELECT:           ui_draw_content_language_select(full_redraw); break;
         case ScreenState::SCREEN_READ_RFID:                 ui_draw_content_read_rfid(full_redraw); break;
+        case ScreenState::SCREEN_MANAGE_CARDS:              ui_draw_content_manage_cards(full_redraw); break;
+        case ScreenState::SCREEN_ADD_CARD_WAIT:             ui_draw_content_add_card_wait(full_redraw); break;
+        case ScreenState::SCREEN_ADD_CARD_CONFIRM:          ui_draw_content_add_card_confirm(full_redraw); break;
+        case ScreenState::SCREEN_DELETE_CARD_CONFIRM:       ui_draw_content_delete_card_confirm(full_redraw); break;
+        case ScreenState::SCREEN_CONFIG_MENU:               ui_draw_content_config_menu(full_redraw); break;
+        case ScreenState::SCREEN_ADJUST_LOCK_TIMEOUT:       ui_draw_content_adjust_lock_timeout(full_redraw); break;
+        case ScreenState::SCREEN_BRIGHTNESS_MENU:           ui_draw_content_brightness_menu(full_redraw); break;
+        case ScreenState::SCREEN_ADJUST_BRIGHTNESS_VALUE:   ui_draw_content_adjust_brightness_value(full_redraw); break;
+        case ScreenState::SCREEN_SETUP_FIRST_CARD:          ui_draw_content_setup_first_card(full_redraw); break;
         // SCREEN_MESSAGE é tratado no início da função.
         default:
             if (full_redraw) { // Tela desconhecida, limpa área de conteúdo
@@ -366,6 +415,7 @@ const char* ui_get_screen_title_string(ScreenState state) {
     StringID title_id;
     switch (state) {
         case ScreenState::SCREEN_STARTUP:                 title_id = StringID::STR_STARTUP_MSG; break; // Ou "" se não quiser título
+        case ScreenState::SCREEN_LOCKED:                  title_id = StringID::STR_TITLE_LOCKED; break;
         case ScreenState::SCREEN_MENU_MAIN:               title_id = StringID::STR_TITLE_MAIN_MENU; break;
         case ScreenState::SCREEN_SERVICE_ADD_WAIT:        title_id = StringID::STR_TITLE_ADD_SERVICE; break;
         case ScreenState::SCREEN_SERVICE_ADD_CONFIRM:     title_id = StringID::STR_TITLE_CONFIRM_ADD; break;
@@ -374,6 +424,26 @@ const char* ui_get_screen_title_string(ScreenState state) {
         case ScreenState::SCREEN_TIMEZONE_EDIT:           title_id = StringID::STR_TITLE_ADJUST_TIMEZONE; break;
         case ScreenState::SCREEN_LANGUAGE_SELECT:         title_id = StringID::STR_TITLE_SELECT_LANGUAGE; break;
         case ScreenState::SCREEN_READ_RFID:               title_id = StringID::STR_TITLE_READ_RFID; break;
+        case ScreenState::SCREEN_MANAGE_CARDS:            title_id = StringID::STR_TITLE_MANAGE_CARDS; break;
+        case ScreenState::SCREEN_ADD_CARD_WAIT:           title_id = StringID::STR_TITLE_ADD_CARD; break;
+        case ScreenState::SCREEN_ADD_CARD_CONFIRM:        title_id = StringID::STR_TITLE_CONFIRM_ADD_CARD; break;
+        case ScreenState::SCREEN_DELETE_CARD_CONFIRM:     title_id = StringID::STR_TITLE_CONFIRM_DELETE_CARD; break;
+        case ScreenState::SCREEN_CONFIG_MENU:             title_id = StringID::STR_TITLE_CONFIG_MENU; break;
+        case ScreenState::SCREEN_ADJUST_LOCK_TIMEOUT:     title_id = StringID::STR_TITLE_ADJUST_LOCK_TIMEOUT; break;
+        case ScreenState::SCREEN_BRIGHTNESS_MENU:         title_id = StringID::STR_TITLE_BRIGHTNESS_MENU; break;
+        case ScreenState::SCREEN_ADJUST_BRIGHTNESS_VALUE:
+            // Title for adjust brightness value screen is dynamic
+            switch(current_brightness_setting_to_adjust) {
+                case BrightnessSettingToAdjust::USB:
+                    return getText(StringID::STR_MENU_BRIGHTNESS_USB); // Or a more specific title like "Adjust USB Brightness"
+                case BrightnessSettingToAdjust::BATTERY:
+                    return getText(StringID::STR_MENU_BRIGHTNESS_BATTERY);
+                case BrightnessSettingToAdjust::DIMMED:
+                    return getText(StringID::STR_MENU_BRIGHTNESS_DIMMED);
+                default: return "Adjust Brightness";
+            }
+            break; // Should not be reached due to return in cases
+        case ScreenState::SCREEN_SETUP_FIRST_CARD:        title_id = StringID::STR_TITLE_SETUP_FIRST_CARD; break;
         case ScreenState::SCREEN_MESSAGE:                 return ""; // Mensagem não tem título padrão
         default: return "Error";
     }
@@ -397,8 +467,24 @@ const char* ui_get_footer_string(ScreenState state) {
             footer_id = StringID::STR_FOOTER_TIMEZONE_NAV; break;
         case ScreenState::SCREEN_LANGUAGE_SELECT:
             footer_id = StringID::STR_FOOTER_LANG_NAV; break;
+        case ScreenState::SCREEN_MANAGE_CARDS:
+            footer_id = StringID::STR_FOOTER_MANAGE_CARDS_NAV; break;
+        case ScreenState::SCREEN_ADD_CARD_WAIT:
+            footer_id = StringID::STR_FOOTER_ADD_CARD_NAV; break;
+        case ScreenState::SCREEN_ADD_CARD_CONFIRM:
+        case ScreenState::SCREEN_DELETE_CARD_CONFIRM:
+            footer_id = StringID::STR_FOOTER_CONFIRM_CARD_NAV; break;
+        case ScreenState::SCREEN_CONFIG_MENU:
+            footer_id = StringID::STR_FOOTER_CONFIG_SUBMENU_NAV; break;
+        case ScreenState::SCREEN_ADJUST_LOCK_TIMEOUT:
+        case ScreenState::SCREEN_ADJUST_BRIGHTNESS_VALUE:
+            footer_id = StringID::STR_FOOTER_ADJUST_VALUE_NAV; break;
+        case ScreenState::SCREEN_BRIGHTNESS_MENU:         // Uses same footer as config submenu
+            footer_id = StringID::STR_FOOTER_CONFIG_SUBMENU_NAV; break;
+        case ScreenState::SCREEN_SETUP_FIRST_CARD:        // No footer for this screen
         case ScreenState::SCREEN_STARTUP:
         case ScreenState::SCREEN_MESSAGE:
+        case ScreenState::SCREEN_LOCKED: // No standard footer for locked screen
         default:
             return nullptr; // Sem rodapé padrão para estas telas
     }
@@ -469,161 +555,115 @@ static void ui_draw_content_totp_view(bool full_redraw) {
     spr_progress_bar.pushSprite(progress_bar_x, progress_bar_sprite_y);
 }
 
-// --- Protótipos das Novas Sub-Funções do Menu (static) ---
-static void ui_handle_menu_animation_and_state(int item_y_start_abs, int item_total_h);
-static void ui_determine_menu_redraw_flags(bool full_redraw, bool& out_main_items_changed, bool& out_scrollbar_changed);
-static void ui_clear_menu_areas_if_needed(bool main_items_changed, int menu_content_width, int visible_menu_area_height);
-static void ui_draw_menu_highlight_rect(int menu_content_width, int item_y_start_abs);
-static void ui_draw_all_visible_menu_items_text(int item_y_start_viewport, int item_total_h);
-static void ui_draw_menu_scrollbar_if_needed(bool scrollbar_changed, int menu_content_width, int visible_menu_area_height, int item_y_start_viewport);
-
-// Variáveis static para rastrear o estado anterior do menu (já existentes, mas usadas pelas novas funções)
-static int menu_highlight_y_prev_abs = -1;
-static int menu_top_visible_prev = -1;
-
-// --- Função Principal do Menu Refatorada ---
+// --- Rewritten Main Menu Drawing Function ---
 static void ui_draw_content_menu_main(bool full_redraw) {
-    int item_y_start_abs = UI_MENU_START_Y; // Posição Y absoluta do início do menu na tela
-    int item_total_h = UI_MENU_ITEM_HEIGHT + UI_MENU_ITEM_SPACING; // Altura total de um item + espaçamento
-    int menu_content_width = screen_width; // Largura da área do menu (geralmente a largura da tela)
-    // Altura da área onde os itens visíveis e a scrollbar serão desenhados
-    int visible_menu_items_area_height = VISIBLE_MENU_ITEMS * item_total_h - UI_MENU_ITEM_SPACING;
+    int content_y_start = UI_CONTENT_Y_START;
+    int content_width = screen_width;
+    int available_height = screen_height - content_y_start - (tft.fontHeight(1) + UI_PADDING) - UI_PADDING;
 
-    // Define o viewport para a área dos itens visíveis do menu
-    tft.setViewport(0, item_y_start_abs, menu_content_width, visible_menu_items_area_height);
-
-    // Posição Y inicial dentro do viewport é sempre 0
-    int item_y_start_viewport = 0;
-
-    // 1. Lida com a lógica da animação e atualiza menu_highlight_y_current
-    ui_handle_menu_animation_and_state(item_y_start_abs, item_total_h);
-
-    // 2. Determina o que precisa ser redesenhado
-    bool main_items_changed, scrollbar_changed;
-    ui_determine_menu_redraw_flags(full_redraw, main_items_changed, scrollbar_changed);
-
-    // 3. Limpa as áreas necessárias
-    ui_clear_menu_areas_if_needed(main_items_changed, menu_content_width, visible_menu_items_area_height);
-
-    // 4. Desenha os componentes do menu se necessário
-    if (main_items_changed) {
-        ui_draw_menu_highlight_rect(menu_content_width, item_y_start_abs);
-        ui_draw_all_visible_menu_items_text(item_y_start_viewport, item_total_h);
+    if (full_redraw) {
+        tft.fillRect(0, content_y_start, content_width, screen_height - content_y_start, COLOR_BG);
     }
 
-    // 5. Desenha a barra de rolagem se necessário
-    ui_draw_menu_scrollbar_if_needed(scrollbar_changed, menu_content_width, visible_menu_items_area_height, item_y_start_viewport);
+    const int cols = 3;
+    const int rows = 2;
+    const int total_buttons = NUM_MENU_OPTIONS;
 
-    // 6. Atualiza o estado anterior para a próxima chamada
-    menu_highlight_y_prev_abs = menu_highlight_y_current;
-    menu_top_visible_prev = menu_top_visible_index;
+    int button_grid_margin_x = UI_PADDING * 3;
+    int button_grid_margin_y = UI_PADDING * 2;
+    int button_spacing_x = UI_PADDING * 2;
+    int button_spacing_y = UI_PADDING * 2;
 
-    // Restaura o viewport para a tela inteira
-    tft.resetViewport();
+    int grid_area_width = content_width - 2 * button_grid_margin_x;
+    int grid_area_height = available_height - 2 * button_grid_margin_y;
 
-    // Restaura as configurações de texto padrão
+    int button_w = (grid_area_width - (cols - 1) * button_spacing_x) / cols;
+    int button_h = (grid_area_height - (rows - 1) * button_spacing_y) / rows;
+
+    // Map menuOptionIDs to icons, their widths, and heights
+    // Order must match menuOptionIDs in globals.cpp:
+    // STR_MENU_VIEW_CODES, STR_ACTION_CONFIG, STR_MENU_ADJUST_TIMEZONE,
+    // STR_MENU_READ_RFID_OPTION, STR_MENU_SELECT_LANGUAGE, STR_MENU_ADJUST_TIME
+    const unsigned char* icons_data[total_buttons] = {
+        codes_menu_icon, image_config_icon_bits, image_zones_icon_bits, // Use new codes_menu_icon for the first item
+        image_rfid_icon_bits, image_lang_icon_bits, image_date_icon_bits
+    };
+    int icon_widths[total_buttons] = {
+        ICON_NEW_CODES_WIDTH, ICON_DEFAULT_WIDTH, ICON_DEFAULT_WIDTH, // Use new codes icon width
+        ICON_DEFAULT_WIDTH, ICON_DEFAULT_WIDTH, ICON_DEFAULT_WIDTH
+    };
+    int icon_heights[total_buttons] = {
+        ICON_NEW_CODES_HEIGHT, ICON_DEFAULT_HEIGHT, ICON_DEFAULT_HEIGHT, // Use new codes icon height
+        ICON_DEFAULT_HEIGHT, ICON_DEFAULT_HEIGHT, ICON_DEFAULT_HEIGHT
+    };
+
+    StringID labels[total_buttons] = {
+        StringID::STR_LABEL_CODES, StringID::STR_LABEL_CONFIG, StringID::STR_LABEL_ZONE,
+        StringID::STR_LABEL_RFID, StringID::STR_LABEL_LANG, StringID::STR_LABEL_DATE
+    };
+
+    for (int i = 0; i < total_buttons; ++i) {
+        int r = i / cols;
+        int c = i % cols;
+
+        int button_x = button_grid_margin_x + c * (button_w + button_spacing_x);
+        int button_y = content_y_start + button_grid_margin_y + r * (button_h + button_spacing_y);
+
+        bool is_selected = (i == current_menu_index);
+        uint16_t fg_color = is_selected ? COLOR_HIGHLIGHT_FG : COLOR_FG;
+        uint16_t bg_color = is_selected ? COLOR_HIGHLIGHT_BG : COLOR_BAR_BG;
+
+        if (is_selected) {
+            tft.fillRoundRect(button_x, button_y, button_w, button_h, 5, COLOR_HIGHLIGHT_BG);
+            tft.drawRoundRect(button_x, button_y, button_w, button_h, 5, COLOR_FG); 
+        } else {
+            tft.fillRoundRect(button_x, button_y, button_w, button_h, 5, COLOR_BAR_BG);
+            tft.drawRoundRect(button_x, button_y, button_w, button_h, 5, COLOR_DIM_TEXT);
+        }
+
+        const unsigned char* progmem_icon_ptr = icons_data[i]; // Pointer to PROGMEM data
+        int current_icon_w = icon_widths[i];
+        int current_icon_h = icon_heights[i];
+        int bytes_per_row = (current_icon_w + 7) / 8;
+        int total_icon_bytes = bytes_per_row * current_icon_h;
+
+        // Determine max possible bytes for any icon to size ram_icon_data buffer.
+        // Pager: 48x32 -> (48/8)*32 = 6*32 = 192 bytes.
+        // Old Codes: 24x15 -> (24/8)*15 = 3*15 = 45 bytes.
+        // Default: 16x16 -> (16/8)*16 = 2*16 = 32 bytes.
+        // Max is 192 bytes.
+        uint8_t ram_icon_data[192]; 
+
+        // 1. Copy from PROGMEM to RAM
+        for (int k = 0; k < total_icon_bytes; ++k) {
+            ram_icon_data[k] = pgm_read_byte(&progmem_icon_ptr[k]);
+        }
+
+        // 2. Reverse bits within each byte (if your rendering requires it, as determined before)
+        for (int k = 0; k < total_icon_bytes; ++k) {
+            ram_icon_data[k] = reverse_byte_bits(ram_icon_data[k]);
+        }
+
+        // Calculate icon position (centered in top 2/3 of button)
+        int icon_area_h = button_h * 2 / 3;
+        int icon_x_pos = button_x + (button_w - current_icon_w) / 2;
+        int icon_y_pos = button_y + (icon_area_h - current_icon_h) / 2 + UI_PADDING / 2;
+
+        tft.drawXBitmap(icon_x_pos, icon_y_pos, ram_icon_data, current_icon_w, current_icon_h, fg_color);
+
+        // Draw Label (in bottom 1/3 of button)
+        int label_area_y_start = button_y + icon_area_h;
+        int label_area_h = button_h - icon_area_h;
+        tft.setTextColor(fg_color, bg_color); // Set text color with button background
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextSize(1);
+        tft.drawString(getText(labels[i]), button_x + button_w / 2, label_area_y_start + label_area_h / 2 - UI_PADDING / 4);
+    }
+
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(COLOR_FG, COLOR_BG);
     tft.setTextSize(1);
 }
-
-
-// --- Implementação das Novas Sub-Funções do Menu ---
-static void ui_handle_menu_animation_and_state(int item_y_start_abs, int item_total_h) {
-    if (is_menu_animating) {
-        unsigned long elapsed = millis() - menu_animation_start_time;
-        if (elapsed >= MENU_ANIMATION_DURATION_MS) {
-            menu_highlight_y_current = menu_highlight_y_target; // Posição Y absoluta
-            is_menu_animating = false;
-        } else {
-            float progress = (float)elapsed / MENU_ANIMATION_DURATION_MS;
-            menu_highlight_y_current = menu_highlight_y_anim_start + (int)((menu_highlight_y_target - menu_highlight_y_anim_start) * progress);
-        }
-    } else if (menu_highlight_y_current == -1 && NUM_MENU_OPTIONS > 0) { // Posição inicial do highlight
-        int initial_visible_pos = current_menu_index - menu_top_visible_index;
-        menu_highlight_y_current = item_y_start_abs + initial_visible_pos * item_total_h;
-        menu_highlight_y_target = menu_highlight_y_current; // Evita animação inicial
-        // Inicializa prev_abs aqui também para evitar um redraw desnecessário no primeiro frame
-        menu_highlight_y_prev_abs = menu_highlight_y_current;
-        menu_top_visible_prev = menu_top_visible_index;
-    }
-}
-
-static void ui_determine_menu_redraw_flags(bool full_redraw, bool& out_main_items_changed, bool& out_scrollbar_changed) {
-    out_main_items_changed = full_redraw || is_menu_animating ||
-                             (menu_highlight_y_current != menu_highlight_y_prev_abs);
-    // A barra de rolagem também muda se os itens principais mudarem (para garantir que seja limpa/redesenhada sobre)
-    // OU se a rolagem (menu_top_visible_index) mudou.
-    out_scrollbar_changed = full_redraw || (menu_top_visible_index != menu_top_visible_prev) || out_main_items_changed;
-}
-
-static void ui_clear_menu_areas_if_needed(bool main_items_changed, int menu_content_width, int visible_menu_items_area_height) {
-    if (main_items_changed) {
-        // Limpa a área dos itens visíveis (onde o texto e o highlight são desenhados)
-        // Exclui a área da scrollbar da limpeza principal, pois ela tem sua própria lógica de redesenho.
-        int item_area_width = menu_content_width - 2 * UI_PADDING - (NUM_MENU_OPTIONS > VISIBLE_MENU_ITEMS ? 10 : 0); // Largura da área dos itens
-        tft.fillRect(UI_PADDING, 0, // X, Y relativos ao viewport
-                     item_area_width,
-                     visible_menu_items_area_height, COLOR_BG);
-    }
-    // A limpeza da scrollbar é feita em ui_draw_menu_scrollbar_if_needed
-}
-
-static void ui_draw_menu_highlight_rect(int menu_content_width, int item_y_start_abs) {
-    if (menu_highlight_y_current == -1 || NUM_MENU_OPTIONS == 0) return;
-
-    // Converte Y absoluto do highlight para relativo ao viewport
-    int current_highlight_y_viewport = menu_highlight_y_current - item_y_start_abs;
-    int highlight_width = menu_content_width - 2 * UI_PADDING - (NUM_MENU_OPTIONS > VISIBLE_MENU_ITEMS ? 10 : 0); // Largura do highlight
-
-    tft.fillRect(UI_PADDING, current_highlight_y_viewport,
-                 highlight_width, UI_MENU_ITEM_HEIGHT, COLOR_HIGHLIGHT_BG);
-}
-
-static void ui_draw_all_visible_menu_items_text(int item_y_start_viewport, int item_total_h) {
-    tft.setTextSize(2);
-    tft.setTextDatum(ML_DATUM);
-    int drawn_items = 0;
-    for (int i = menu_top_visible_index; i < NUM_MENU_OPTIONS && drawn_items < VISIBLE_MENU_ITEMS; ++i) {
-        int item_render_y_viewport = item_y_start_viewport + drawn_items * item_total_h;
-        bool is_selected = (i == current_menu_index);
-
-        uint16_t text_bg_color = is_selected ? COLOR_HIGHLIGHT_BG : COLOR_BG;
-        uint16_t text_fg_color = is_selected ? COLOR_HIGHLIGHT_FG : COLOR_FG;
-
-        tft.setTextColor(text_fg_color, text_bg_color);
-        tft.drawString(getText(menuOptionIDs[i]), UI_PADDING * 3, item_render_y_viewport + UI_MENU_ITEM_HEIGHT / 2);
-        drawn_items++;
-    }
-}
-
-static void ui_draw_menu_scrollbar_if_needed(bool scrollbar_changed, int menu_content_width, int visible_menu_items_area_height, int item_y_start_viewport) {
-    if (!scrollbar_changed) return; // Se não mudou, não faz nada
-
-    int scrollbar_x_rel_viewport = menu_content_width - UI_PADDING - 6; // X relativo ao viewport
-    int scrollbar_w = 4;
-    int scrollbar_track_y_viewport = item_y_start_viewport; // Y inicial do trilho no viewport
-    int scrollbar_track_h = visible_menu_items_area_height - UI_MENU_ITEM_SPACING; // Altura do trilho
-
-    // Limpa a área da barra de rolagem antes de redesenhar
-    tft.fillRect(scrollbar_x_rel_viewport, scrollbar_track_y_viewport, scrollbar_w, scrollbar_track_h, COLOR_BG);
-
-    if (NUM_MENU_OPTIONS > VISIBLE_MENU_ITEMS) {
-        // Desenha o trilho
-        tft.fillRect(scrollbar_x_rel_viewport, scrollbar_track_y_viewport, scrollbar_w, scrollbar_track_h, COLOR_DIM_TEXT);
-
-        int thumb_h = max(10, scrollbar_track_h * VISIBLE_MENU_ITEMS / NUM_MENU_OPTIONS);
-        int thumb_max_y_offset = scrollbar_track_h - thumb_h;
-        int thumb_y_offset = 0;
-        if (NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS > 0) { // Evita divisão por zero
-            thumb_y_offset = round((float)thumb_max_y_offset * menu_top_visible_index / (NUM_MENU_OPTIONS - VISIBLE_MENU_ITEMS));
-        }
-        thumb_y_offset = constrain(thumb_y_offset, 0, thumb_max_y_offset);
-        tft.fillRect(scrollbar_x_rel_viewport, scrollbar_track_y_viewport + thumb_y_offset, scrollbar_w, thumb_h, COLOR_ACCENT);
-    }
-    // Se NUM_MENU_OPTIONS <= VISIBLE_MENU_ITEMS, a área já foi limpa com COLOR_BG, então a scrollbar "desaparece".
-}
-
 
 static void ui_draw_content_service_add_wait(bool full_redraw) {
     if (full_redraw) {
@@ -917,3 +957,448 @@ static void ui_draw_content_read_rfid(bool full_redraw) {
     tft.setTextDatum(TL_DATUM); // Reset datum
     tft.setTextSize(1);
 }
+
+// ---- New Lock Screen Drawing Function ----
+static void ui_draw_content_locked(bool full_redraw) {
+    int content_y = UI_CONTENT_Y_START;
+    int content_h = screen_height - content_y; // Lock screen uses full content area below header
+    int center_x = screen_width / 2;
+    int center_y_area = content_y + content_h / 2;
+
+    if (full_redraw) {
+        tft.fillRect(0, content_y, screen_width, content_h, COLOR_BG);
+    }
+
+    // --- Draw Padlock Icon ---
+    uint8_t ram_icon_data[ICON_PADLOCK_WIDTH * ICON_PADLOCK_HEIGHT / 8];
+    for (int k = 0; k < sizeof(ram_icon_data); ++k) {
+        ram_icon_data[k] = reverse_byte_bits(pgm_read_byte(&image_padlock_icon_bits[k]));
+    }
+    int icon_x_pos = center_x - ICON_PADLOCK_WIDTH / 2;
+    int icon_y_pos = center_y_area - ICON_PADLOCK_HEIGHT - 10; // Position above text
+    tft.drawXBitmap(icon_x_pos, icon_y_pos, ram_icon_data, ICON_PADLOCK_WIDTH, ICON_PADLOCK_HEIGHT, COLOR_FG);
+
+    // --- Draw Prompt Text ---
+    tft.setTextColor(COLOR_FG, COLOR_BG);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextSize(2); // Larger text for prompt
+    
+    // Handle multi-line prompt from i18n
+    char prompt_buf[100];
+    strncpy(prompt_buf, getText(StringID::STR_LOCKED_PROMPT), sizeof(prompt_buf) -1);
+    prompt_buf[sizeof(prompt_buf)-1] = '\0';
+
+    char* line1 = strtok(prompt_buf, "\n");
+    char* line2 = strtok(NULL, "\n");
+    int text_y_pos = center_y_area + 15; // Position below icon
+
+    if (line1 && line2) {
+        tft.drawString(line1, center_x, text_y_pos);
+        tft.drawString(line2, center_x, text_y_pos + tft.fontHeight(2) + 2);
+    } else if (line1) {
+        tft.drawString(line1, center_x, text_y_pos);
+    }
+
+    tft.setTextDatum(TL_DATUM); // Reset datum
+    tft.setTextSize(1);
+}
+
+// ---- New Card Management Screen Drawing Functions ----
+static void ui_draw_content_manage_cards(bool full_redraw) {
+    int content_y = UI_CONTENT_Y_START;
+    int item_h = UI_MENU_ITEM_HEIGHT;
+    int item_spacing = UI_MENU_ITEM_SPACING;
+    int total_item_h = item_h + item_spacing;
+    int footer_h = tft.fontHeight(1) + UI_PADDING * 2; // Approximate height for footer
+    int available_draw_height = screen_height - content_y - footer_h;
+    int max_visible_items = available_draw_height / total_item_h;
+    if (max_visible_items <= 0) max_visible_items = 1;
+
+    if (full_redraw) {
+        tft.fillRect(0, content_y, screen_width, screen_height - content_y - footer_h, COLOR_BG); // Clear content area above footer
+    }
+
+    if (authorized_card_count == 0) {
+        tft.setTextColor(COLOR_DIM_TEXT, COLOR_BG);
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextSize(2);
+        char* line1 = strtok((char*)getText(StringID::STR_CARD_LIST_EMPTY), "\n");
+        char* line2 = strtok(NULL, "\n");
+        int text_center_y = content_y + available_draw_height / 2;
+        if (line1 && line2) {
+            tft.drawString(line1, screen_width / 2, text_center_y - tft.fontHeight(2)/2 - 2);
+            tft.drawString(line2, screen_width / 2, text_center_y + tft.fontHeight(2)/2 + 2);
+        } else if (line1) {
+            tft.drawString(line1, screen_width / 2, text_center_y);
+        }
+    } else {
+        tft.setTextSize(1); // Smaller text for card UIDs
+        int draw_y = content_y + UI_PADDING;
+        
+        // Ensure manage_cards_top_visible_index is valid
+        if (manage_cards_top_visible_index < 0) manage_cards_top_visible_index = 0;
+        if (manage_cards_top_visible_index > authorized_card_count - max_visible_items && authorized_card_count > max_visible_items) {
+            manage_cards_top_visible_index = authorized_card_count - max_visible_items;
+        } else if (authorized_card_count <= max_visible_items) {
+            manage_cards_top_visible_index = 0;
+        }
+
+        for (int i = 0; i < max_visible_items; ++i) {
+            int actual_card_index = manage_cards_top_visible_index + i;
+            if (actual_card_index >= authorized_card_count) break; // Don't draw beyond available cards
+
+            bool is_selected = (actual_card_index == current_manage_card_index);
+            uint16_t item_fg_color = is_selected ? COLOR_HIGHLIGHT_FG : COLOR_FG;
+            uint16_t item_bg_color = is_selected ? COLOR_HIGHLIGHT_BG : COLOR_BG;
+
+            int current_item_draw_y = draw_y + i * total_item_h;
+
+            // Clear item area before drawing (especially if not full_redraw)
+            if (!full_redraw) {
+                 tft.fillRect(UI_PADDING, current_item_draw_y, screen_width - 2 * UI_PADDING - (authorized_card_count > max_visible_items ? 10 : 0), item_h, COLOR_BG);
+            }
+            if (is_selected) { // Draw highlight for selected item
+                 tft.fillRect(UI_PADDING, current_item_draw_y, screen_width - 2 * UI_PADDING - (authorized_card_count > max_visible_items ? 10 : 0), item_h, item_bg_color);
+            }
+
+            tft.setTextColor(item_fg_color, item_bg_color);
+            tft.setTextDatum(ML_DATUM);
+            // Truncate card ID if too long for the display area
+            char display_card_id[MAX_CARD_ID_LEN + 4]; // +4 for "..."
+            int max_text_width = screen_width - (UI_PADDING * 6) - (authorized_card_count > max_visible_items ? 10 : 0);
+            if (tft.textWidth(authorized_card_ids[actual_card_index]) > max_text_width) {
+                int len = strlen(authorized_card_ids[actual_card_index]);
+                int cutoff = len;
+                while(cutoff > 0 && tft.textWidth(String(authorized_card_ids[actual_card_index]).substring(0, cutoff) + "...") > max_text_width) {
+                    cutoff--;
+                }
+                snprintf(display_card_id, sizeof(display_card_id), "%.*s...", cutoff, authorized_card_ids[actual_card_index]);
+            } else {
+                strncpy(display_card_id, authorized_card_ids[actual_card_index], sizeof(display_card_id) -1);
+                display_card_id[sizeof(display_card_id)-1] = '\0';
+            }
+            tft.drawString(display_card_id, UI_PADDING * 3, current_item_draw_y + item_h / 2);
+        }
+
+        // Draw scrollbar if needed
+        if (authorized_card_count > max_visible_items) {
+            int scrollbar_x = screen_width - UI_PADDING - 6;
+            int scrollbar_w = 4;
+            int scrollbar_track_h = max_visible_items * total_item_h - item_spacing;
+            int scrollbar_track_y = content_y + UI_PADDING;
+
+            tft.fillRect(scrollbar_x, scrollbar_track_y, scrollbar_w, scrollbar_track_h, COLOR_DIM_TEXT); // Scrollbar track
+
+            int thumb_h = max(10, scrollbar_track_h * max_visible_items / authorized_card_count);
+            int thumb_max_y_offset = scrollbar_track_h - thumb_h;
+            int thumb_y_offset = 0;
+            if (authorized_card_count - max_visible_items > 0) {
+                thumb_y_offset = round((float)thumb_max_y_offset * manage_cards_top_visible_index / (authorized_card_count - max_visible_items));
+            }
+            thumb_y_offset = constrain(thumb_y_offset, 0, thumb_max_y_offset);
+            tft.fillRect(scrollbar_x, scrollbar_track_y + thumb_y_offset, scrollbar_w, thumb_h, COLOR_ACCENT); // Scrollbar thumb
+        }
+    }
+    tft.setTextDatum(TL_DATUM);
+    tft.setTextColor(COLOR_FG, COLOR_BG);
+    tft.setTextSize(1);
+}
+
+static void ui_draw_content_add_card_wait(bool full_redraw) {
+    int content_y = UI_CONTENT_Y_START;
+    int content_h = screen_height - content_y - (tft.fontHeight(1) + UI_PADDING);
+    if (full_redraw) {
+        tft.fillRect(0, content_y, screen_width, content_h, COLOR_BG);
+        tft.setTextColor(COLOR_FG, COLOR_BG);
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextSize(2);
+        char* line1 = strtok((char*)getText(StringID::STR_ADD_CARD_PROMPT), "\n");
+        char* line2 = strtok(NULL, "\n");
+        if (line1 && line2) {
+            tft.drawString(line1, screen_width / 2, content_y + content_h / 2 - tft.fontHeight(2)/2 - 2);
+            tft.drawString(line2, screen_width / 2, content_y + content_h / 2 + tft.fontHeight(2)/2 + 2);
+        } else if (line1) {
+            tft.drawString(line1, screen_width / 2, content_y + content_h / 2);
+        }
+        tft.setTextDatum(TL_DATUM);
+        tft.setTextSize(1);
+    }
+}
+
+static void ui_draw_content_add_card_confirm(bool full_redraw) {
+    int content_y = UI_CONTENT_Y_START;
+    int content_h = screen_height - content_y - (tft.fontHeight(1) + UI_PADDING);
+    if (full_redraw) {
+        tft.fillRect(0, content_y, screen_width, content_h, COLOR_BG);
+        tft.setTextColor(COLOR_ACCENT, COLOR_BG);
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextSize(2);
+
+        char confirm_prompt[100];
+        snprintf(confirm_prompt, sizeof(confirm_prompt), getText(StringID::STR_CONFIRM_ADD_CARD_PROMPT_FMT), temp_card_id);
+        
+        char* line1 = strtok(confirm_prompt, "\n");
+        char* line2 = strtok(NULL, "\n");
+        char* line3 = strtok(NULL, "\n"); // For potentially long UIDs split over two lines by the format string
+
+        int base_y = content_y + content_h / 2;
+        int line_height = tft.fontHeight(2) + 2;
+
+        if (line1 && line2 && line3) {
+             tft.drawString(line1, screen_width / 2, base_y - line_height);
+             tft.drawString(line2, screen_width / 2, base_y);
+             tft.drawString(line3, screen_width / 2, base_y + line_height);
+        } else if (line1 && line2) {
+            tft.drawString(line1, screen_width / 2, base_y - line_height / 2);
+            tft.drawString(line2, screen_width / 2, base_y + line_height / 2);
+        } else if (line1) {
+            tft.drawString(line1, screen_width / 2, base_y);
+        }
+
+        tft.setTextDatum(TL_DATUM);
+        tft.setTextColor(COLOR_FG, COLOR_BG);
+        tft.setTextSize(1);
+    }
+}
+
+static void ui_draw_content_delete_card_confirm(bool full_redraw) {
+    int content_y = UI_CONTENT_Y_START;
+    int content_h = screen_height - content_y - (tft.fontHeight(1) + UI_PADDING);
+    if (full_redraw) {
+        tft.fillRect(0, content_y, screen_width, content_h, COLOR_BG);
+        tft.setTextColor(COLOR_ERROR, COLOR_BG);
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextSize(2);
+
+        char confirm_prompt[100];
+        // Ensure current_manage_card_index is valid before accessing authorized_card_ids
+        const char* card_to_delete_id = "????";
+        if (current_manage_card_index >= 0 && current_manage_card_index < authorized_card_count) {
+            card_to_delete_id = authorized_card_ids[current_manage_card_index];
+        }
+        snprintf(confirm_prompt, sizeof(confirm_prompt), getText(StringID::STR_CONFIRM_DELETE_CARD_PROMPT_FMT), card_to_delete_id);
+
+        char* line1 = strtok(confirm_prompt, "\n");
+        char* line2 = strtok(NULL, "\n");
+        char* line3 = strtok(NULL, "\n");
+
+        int base_y = content_y + content_h / 2;
+        int line_height = tft.fontHeight(2) + 2;
+
+        if (line1 && line2 && line3) {
+             tft.drawString(line1, screen_width / 2, base_y - line_height);
+             tft.drawString(line2, screen_width / 2, base_y);
+             tft.drawString(line3, screen_width / 2, base_y + line_height);
+        } else if (line1 && line2) {
+            tft.drawString(line1, screen_width / 2, base_y - line_height / 2);
+            tft.drawString(line2, screen_width / 2, base_y + line_height / 2);
+        } else if (line1) {
+            tft.drawString(line1, screen_width / 2, base_y);
+        }
+
+        tft.setTextDatum(TL_DATUM);
+        tft.setTextColor(COLOR_FG, COLOR_BG);
+        tft.setTextSize(1);
+    }
+}
+
+// ---- New Config Submenu Drawing Function ----
+static void ui_draw_content_config_menu(bool full_redraw) {
+    int content_y = UI_CONTENT_Y_START;
+    int item_h = UI_MENU_ITEM_HEIGHT;
+    int item_spacing = UI_MENU_ITEM_SPACING;
+    int total_item_h = item_h + item_spacing;
+    // For simplicity, this menu won't scroll for now, similar to language select.
+    // It will display all NUM_CONFIG_MENU_OPTIONS.
+
+    if (full_redraw) {
+        tft.fillRect(0, content_y, screen_width, screen_height - content_y, COLOR_BG);
+    }
+
+    tft.setTextSize(2); // Standard menu item text size
+    int draw_y = content_y + UI_PADDING + item_spacing; // Start a bit lower for visual balance
+
+    for (int i = 0; i < NUM_CONFIG_MENU_OPTIONS; ++i) {
+        bool is_selected = (i == current_config_menu_index);
+        uint16_t item_fg_color = is_selected ? COLOR_HIGHLIGHT_FG : COLOR_FG;
+        uint16_t item_bg_color = is_selected ? COLOR_HIGHLIGHT_BG : COLOR_BG;
+
+        // Draw background for selection highlight
+        if (is_selected) {
+            tft.fillRect(UI_PADDING, draw_y, screen_width - 2 * UI_PADDING, item_h, item_bg_color);
+        }
+
+        tft.setTextColor(item_fg_color, item_bg_color); // Set text color with appropriate background
+        tft.setTextDatum(ML_DATUM); // Middle-Left for consistent text alignment
+        tft.drawString(getText(configMenuOptionIDs[i]), UI_PADDING * 3, draw_y + item_h / 2);
+        
+        draw_y += total_item_h;
+    }
+
+    tft.setTextDatum(TL_DATUM); // Reset datum
+    tft.setTextColor(COLOR_FG, COLOR_BG); // Reset colors
+    tft.setTextSize(1); // Reset text size
+}
+
+// ---- New Adjust Lock Timeout Screen Drawing Function ----
+static void ui_draw_content_adjust_lock_timeout(bool full_redraw) {
+    int content_y = UI_CONTENT_Y_START;
+    int content_h = screen_height - content_y - (tft.fontHeight(1) + UI_PADDING); // Desconta footer
+    int center_y_area = content_y + content_h / 2;
+
+    if (full_redraw) {
+        tft.fillRect(0, content_y, screen_width, content_h, COLOR_BG); // Limpa área de conteúdo
+    } else {
+        // Limpa apenas a área do valor do timeout para atualizações parciais
+        tft.fillRect(0, center_y_area - tft.fontHeight(3)/2 - 5, screen_width, tft.fontHeight(3) + 10, COLOR_BG);
+    }
+
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(COLOR_FG, COLOR_BG);
+    tft.setTextSize(3); // Tamanho grande para o valor
+
+    char display_str[30];
+    snprintf(display_str, sizeof(display_str), getText(StringID::STR_LOCK_TIMEOUT_LABEL_FMT), temp_lock_timeout_minutes);
+    
+    // Quebrar manualmente se for muito longo (improvável para este formato)
+    char* line1 = strtok(display_str, "\n"); 
+    char* line2 = strtok(NULL, "\n");
+
+    if (line1 && line2) {
+        tft.drawString(line1, screen_width / 2, center_y_area - tft.fontHeight(3)/2 - 2);
+        tft.drawString(line2, screen_width / 2, center_y_area + tft.fontHeight(3)/2 + 2);
+    } else if (line1) {
+        tft.drawString(line1, screen_width / 2, center_y_area);
+    }
+
+    tft.setTextDatum(TL_DATUM); // Reset datum
+    tft.setTextSize(1);
+}
+
+// ---- New Brightness Adjustment Screen Drawing Functions ----
+static void ui_draw_content_brightness_menu(bool full_redraw) {
+    int content_y = UI_CONTENT_Y_START;
+    int item_h = UI_MENU_ITEM_HEIGHT;
+    int item_spacing = UI_MENU_ITEM_SPACING;
+    int total_item_h = item_h + item_spacing;
+    
+    if (full_redraw) {
+        tft.fillRect(0, content_y, screen_width, screen_height - content_y, COLOR_BG);
+    }
+
+    tft.setTextSize(2);
+    int draw_y = content_y + UI_PADDING + item_spacing;
+
+    const StringID brightness_menu_options[] = {
+        StringID::STR_MENU_BRIGHTNESS_USB,
+        StringID::STR_MENU_BRIGHTNESS_BATTERY,
+        StringID::STR_MENU_BRIGHTNESS_DIMMED
+    };
+    int num_brightness_options = sizeof(brightness_menu_options) / sizeof(brightness_menu_options[0]);
+
+    // current_config_menu_index is reused for this small menu for simplicity of input handling logic
+    // or a new index specific to this menu could be introduced if it grows.
+    for (int i = 0; i < num_brightness_options; ++i) {
+        // Assuming current_brightness_setting_to_adjust can be mapped to an index 0,1,2 for selection highlight
+        // This might need a dedicated index like current_brightness_menu_index if current_config_menu_index is not suitable.
+        // For now, let's use current_config_menu_index as a temporary measure for selection.
+        bool is_selected = (i == current_config_menu_index); 
+        uint16_t item_fg_color = is_selected ? COLOR_HIGHLIGHT_FG : COLOR_FG;
+        uint16_t item_bg_color = is_selected ? COLOR_HIGHLIGHT_BG : COLOR_BG;
+
+        if (is_selected) {
+            tft.fillRect(UI_PADDING, draw_y, screen_width - 2 * UI_PADDING, item_h, item_bg_color);
+        }
+
+        tft.setTextColor(item_fg_color, item_bg_color);
+        tft.setTextDatum(ML_DATUM);
+        tft.drawString(getText(brightness_menu_options[i]), UI_PADDING * 3, draw_y + item_h / 2);
+        
+        draw_y += total_item_h;
+    }
+
+    tft.setTextDatum(TL_DATUM);
+    tft.setTextColor(COLOR_FG, COLOR_BG);
+    tft.setTextSize(1);
+}
+
+static void ui_draw_content_adjust_brightness_value(bool full_redraw) {
+    int content_y = UI_CONTENT_Y_START;
+    int content_h = screen_height - content_y - (tft.fontHeight(1) + UI_PADDING);
+    int center_y_area = content_y + content_h / 2;
+
+    if (full_redraw) {
+        tft.fillRect(0, content_y, screen_width, content_h, COLOR_BG);
+    } else {
+        tft.fillRect(0, center_y_area - tft.fontHeight(3)/2 - 10, screen_width, tft.fontHeight(3) + 20, COLOR_BG);
+    }
+
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(COLOR_FG, COLOR_BG);
+    tft.setTextSize(2); // Slightly smaller than timeout value, or use 3 and adjust layout
+
+    char display_str[50];
+    const char* brightness_type_str = "Error";
+    switch(current_brightness_setting_to_adjust) {
+        case BrightnessSettingToAdjust::USB: brightness_type_str = getText(StringID::STR_MENU_BRIGHTNESS_USB); break;
+        case BrightnessSettingToAdjust::BATTERY: brightness_type_str = getText(StringID::STR_MENU_BRIGHTNESS_BATTERY); break;
+        case BrightnessSettingToAdjust::DIMMED: brightness_type_str = getText(StringID::STR_MENU_BRIGHTNESS_DIMMED); break;
+    }
+    // Using STR_TITLE_ADJUST_BRIGHTNESS_VALUE_FMT which is "Brightness (%s): %d"
+    snprintf(display_str, sizeof(display_str), getText(StringID::STR_TITLE_ADJUST_BRIGHTNESS_VALUE_FMT), 
+             brightness_type_str, temp_brightness_value);
+    
+    // Manual line break if needed, though the format string might be short enough
+    char* line1 = strtok(display_str, "\n"); 
+    char* line2 = strtok(NULL, "\n");
+
+    if (line1 && line2) {
+        tft.drawString(line1, screen_width / 2, center_y_area - tft.fontHeight(2)/2 - 2);
+        tft.drawString(line2, screen_width / 2, center_y_area + tft.fontHeight(2)/2 + 2);
+    } else if (line1) {
+        tft.drawString(line1, screen_width / 2, center_y_area);
+    }
+
+    tft.setTextDatum(TL_DATUM);
+    tft.setTextSize(1);
+}
+
+// ---- New First Card Setup Screen Drawing Function ----
+static void ui_draw_content_setup_first_card(bool full_redraw) {
+    int content_y = UI_CONTENT_Y_START;
+    // This screen might not have a traditional footer, using more of the screen for the prompt.
+    int content_h = screen_height - content_y; 
+    int center_x = screen_width / 2;
+    int center_y_area = content_y + content_h / 2;
+
+    if (full_redraw) {
+        tft.fillRect(0, content_y, screen_width, content_h, COLOR_BG);
+    }
+
+    tft.setTextColor(COLOR_FG, COLOR_BG);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextSize(2);
+    
+    char prompt_buf[120];
+    strncpy(prompt_buf, getText(StringID::STR_PROMPT_SETUP_FIRST_CARD), sizeof(prompt_buf) -1);
+    prompt_buf[sizeof(prompt_buf)-1] = '\0';
+
+    char* line1 = strtok(prompt_buf, "\n");
+    char* line2 = strtok(NULL, "\n");
+    int text_y_pos = center_y_area;
+
+    if (line1 && line2) {
+        tft.drawString(line1, center_x, text_y_pos - tft.fontHeight(2)/2 - 2);
+        tft.drawString(line2, center_x, text_y_pos + tft.fontHeight(2)/2 + 2);
+    } else if (line1) {
+        tft.drawString(line1, center_x, text_y_pos);
+    }
+    
+    // Optionally, add a small visual indicator that RFID is active (e.g., a small RFID icon)
+    // For now, the text prompt is the main indicator.
+
+    tft.setTextDatum(TL_DATUM); // Reset datum
+    tft.setTextSize(1);
+}
+
+// ... rest of ui_manager.cpp ...

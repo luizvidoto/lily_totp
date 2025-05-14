@@ -2,6 +2,7 @@
 #include "rfid_reader.h"
 #include "globals.h" // Acesso a mfrc522, card_id
 #include "config.h"  // Acesso aos pinos SPI (SCK_PIN, MISO_PIN, MOSI_PIN) - Embora MFRC522 use SPI padrão
+#include "input_handler.h" // Para rfid_on_card_present
 #include <SPI.h>     // Necessário para MFRC522
 #include <Arduino.h> // Para Serial, sprintf
 
@@ -56,11 +57,13 @@ bool rfid_read_card() {
         Serial.printf("[RFID] Cartão lido com UID curto (size=%d).\n", mfrc522.uid.size);
     }
 
-
     // 4. Libera o cartão para permitir nova leitura (importante!)
     mfrc522.PICC_HaltA();
     // 5. Para a criptografia (se estava ativa - não usamos aqui, mas é boa prática)
     mfrc522.PCD_StopCrypto1();
+
+    // Call the handler in input_handler.cpp - ADD THIS LINE
+    rfid_on_card_present(card_id);
 
     return true; // Novo cartão lido com sucesso
 }

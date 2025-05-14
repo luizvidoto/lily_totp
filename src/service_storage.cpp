@@ -12,7 +12,7 @@
 bool service_storage_load_all() {
     if (!preferences.begin(NVS_NAMESPACE, true)) { // true = read-only
         Serial.printf("[Storage] Erro ao abrir NVS namespace '%s' para leitura.\n", NVS_NAMESPACE);
-        ui_queue_message(getText(StringID::STR_ERROR_NVS_LOAD), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN); // Ou uma tela de erro fatal
+        ui_queue_message(getText(StringID::STR_ERROR_NVS_LOAD_CONFIG), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN); // Ou uma tela de erro fatal
         service_count = 0;
         return false;
     }
@@ -68,7 +68,7 @@ bool service_storage_load_all() {
 bool service_storage_save_all() {
     if (!preferences.begin(NVS_NAMESPACE, false)) { // false = read-write
         Serial.printf("[Storage] Erro ao abrir NVS namespace '%s' para escrita.\n", NVS_NAMESPACE);
-        ui_queue_message(getText(StringID::STR_ERROR_NVS_SAVE), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN);
+        ui_queue_message(getText(StringID::STR_ERROR_NVS_SAVE_CONFIG), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN);
         return false;
     }
 
@@ -79,7 +79,7 @@ bool service_storage_save_all() {
     if (!preferences.putInt(NVS_SVC_COUNT_KEY, service_count)) {
         Serial.println("[Storage] Erro ao salvar novo contador de serviços no NVS.");
         preferences.end();
-        ui_queue_message(getText(StringID::STR_ERROR_NVS_SAVE), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN);
+        ui_queue_message(getText(StringID::STR_ERROR_NVS_SAVE_CONFIG), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN);
         return false;
     }
 
@@ -91,12 +91,11 @@ bool service_storage_save_all() {
         snprintf(name_key, sizeof(name_key), "%s%d%s", NVS_SVC_NAME_PREFIX, i, NVS_SVC_NAME_SUFFIX);
         snprintf(secret_key, sizeof(secret_key), "%s%d%s", NVS_SVC_NAME_PREFIX, i, NVS_SVC_SECRET_SUFFIX);
 
-        if (!preferences.putString(name_key, services[i].name)) success = false;
-        if (!preferences.putString(secret_key, services[i].secret_b32)) success = false;
-
-        if (!success) {
+        if (!preferences.putString(name_key, services[i].name) || !preferences.putString(secret_key, services[i].secret_b32)) {
             Serial.printf("[Storage] Erro ao salvar serviço %d ('%s') no NVS.\n", i, services[i].name);
-            break; // Para a operação se um erro ocorrer
+            preferences.end();
+            ui_queue_message(getText(StringID::STR_ERROR_NVS_SAVE_CONFIG), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN);
+            return false;
         }
     }
 
@@ -116,7 +115,7 @@ bool service_storage_save_all() {
     preferences.end();
 
     if (!success) {
-        ui_queue_message(getText(StringID::STR_ERROR_NVS_SAVE), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN);
+        ui_queue_message(getText(StringID::STR_ERROR_NVS_SAVE_CONFIG), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN);
     } else {
         Serial.printf("[Storage] %d serviços salvos no NVS.\n", service_count);
     }
@@ -139,17 +138,17 @@ void service_storage_prepare_add_from_json(JsonDocument& doc) {
 
     // Validação de comprimento
     if (strlen(name_json) == 0 || strlen(name_json) > MAX_SERVICE_NAME_LEN) {
-        ui_queue_message(getText(StringID::STR_ERROR_SERVICE_NAME_INVALID), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN);
+        ui_queue_message(getText(StringID::STR_ERROR_INVALID_SVC_NAME), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN);
         return;
     }
     if (strlen(secret_json) == 0 || strlen(secret_json) > MAX_SECRET_B32_LEN) {
-        ui_queue_message(getText(StringID::STR_ERROR_SECRET_INVALID), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN);
+        ui_queue_message(getText(StringID::STR_ERROR_INVALID_SECRET), COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN);
         return;
     }
 
     // Validação de caracteres do segredo Base32
     if (!totp_validate_base32_string(secret_json)) {
-        ui_queue_message(getText(StringID::STR_ERROR_SECRET_B32_CHARS), COLOR_ERROR, 3500, ScreenState::SCREEN_MENU_MAIN);
+        ui_queue_message(getText(StringID::STR_ERROR_INVALID_B32_SECRET), COLOR_ERROR, 3500, ScreenState::SCREEN_MENU_MAIN);
         return;
     }
 
@@ -165,7 +164,7 @@ void service_storage_prepare_add_from_json(JsonDocument& doc) {
 
 bool service_storage_commit_add() {
     if (service_count >= MAX_SERVICES) {
-        ui_queue_message_fmt(StringID::STR_ERROR_MAX_SERVICES, COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN, MAX_SERVICES);
+        ui_queue_message_fmt(StringID::STR_ERROR_MAX_SERVICES_FMT, COLOR_ERROR, 3000, ScreenState::SCREEN_MENU_MAIN, MAX_SERVICES);
         return false;
     }
 

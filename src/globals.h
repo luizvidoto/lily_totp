@@ -37,6 +37,10 @@ extern BatteryInfo battery_info;
 extern uint8_t current_target_brightness; // Nível de brilho alvo (0-255 ou 0-16)
 extern uint32_t last_interaction_time;
 
+// Lock state
+extern bool is_locked;
+extern uint32_t last_lock_check_time; // Added extern
+
 // Configurações de tempo e idioma
 extern int gmt_offset; // Deslocamento GMT em horas (+/-)
 extern Language current_language;
@@ -60,6 +64,11 @@ extern bool is_menu_animating;
 extern const StringID menuOptionIDs[]; 
 extern const int NUM_MENU_OPTIONS;     
 
+// ---- Novo: Opções do Submenu de Configurações ----
+extern const StringID configMenuOptionIDs[]; // Added extern
+extern const int NUM_CONFIG_MENU_OPTIONS;   // Added extern
+extern int current_config_menu_index;       // Added extern
+
 // Buffer para mensagens temporárias na tela
 extern char message_buffer[120]; // Aumentado um pouco para mensagens de erro mais longas
 extern uint16_t message_color;
@@ -69,8 +78,27 @@ extern ScreenState message_next_screen; // Para onde ir após a mensagem
 // RFID
 extern char card_id[16]; // Armazena o ID do último cartão RFID lido "XX XX XX XX"
 
+// RFID Card Management - ADD MISSING EXTERN DECLARATIONS
+extern char authorized_card_ids[MAX_AUTHORIZED_CARDS][MAX_CARD_ID_LEN];
+extern int authorized_card_count;
+extern int current_manage_card_index;
+extern int manage_cards_top_visible_index;
+// extern char temp_card_id[MAX_CARD_ID_LEN]; // This is already present
+
 // Timers
 extern uint32_t last_rtc_sync_time;
 extern uint32_t last_screen_update_time;
+
+// Variável para editar o timeout de bloqueio
+extern int temp_lock_timeout_minutes;
+
+// ---- Novas Globais para Configuração de Brilho ----
+extern uint8_t brightness_usb_level;
+extern uint8_t brightness_battery_level;
+extern uint8_t brightness_dimmed_level;
+extern int temp_brightness_value;
+extern BrightnessSettingToAdjust current_brightness_setting_to_adjust;
+
+extern char temp_card_id[MAX_CARD_ID_LEN]; // Ensure this extern declaration is present
 
 #endif // GLOBALS_H

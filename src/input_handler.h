@@ -11,4 +11,6 @@ void input_tick();
 // Processa dados recebidos via Serial (chamado por input_tick quando apropriado)
 void input_process_serial();
 
+void rfid_on_card_present(const char* uid_str);
+
 #endif // INPUT_HANDLER_H

@@ -54,12 +54,17 @@ constexpr uint32_t LOOP_DELAY_MS = 10;           // Delay principal do loop (red
 #define UI_MENU_ITEM_SPACING 5
 #define UI_MENU_START_Y UI_CONTENT_Y_START
 
-// ---- Configurações de Gerenciamento de Energia ----
+// ---- Configurações de Gerenciamento de Energia e Bloqueio ----
 constexpr uint32_t INACTIVITY_TIMEOUT_MS = 20000; // Tempo para escurecer a tela (reduzido)
+constexpr uint32_t LOCK_INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutos para bloqueio automático
 constexpr uint32_t RTC_SYNC_INTERVAL_MS = 3600000; // Sincronizar com RTC a cada hora
 constexpr float USB_THRESHOLD_VOLTAGE = 4.15f;
 constexpr float BATTERY_MAX_VOLTAGE = 4.10f;
 constexpr float BATTERY_MIN_VOLTAGE = 3.20f;
+
+// ---- Configurações de RFID ----
+constexpr int MAX_AUTHORIZED_CARDS = 5;     // Máximo de cartões RFID autorizados
+constexpr int MAX_CARD_ID_LEN = 16;         // Comprimento máximo da string do ID do cartão (incluindo \0)
 
 // Níveis de Brilho (0-255 para PWM de hardware, ou 0-16 para fallback de software)
 // Ajuste BRIGHTNESS_MAX_LEVEL conforme a resolução do PWM (e.g., 255 para 8 bits)
@@ -75,14 +80,6 @@ constexpr uint8_t BRIGHTNESS_OFF = 0;         // Tela desligada
 #define BL_PWM_RESOLUTION 8  // Resolução do PWM em bits (8 bits = 0-255)
 
 // ---- Chaves NVS (Non-Volatile Storage) ----
-// const char* NVS_NAMESPACE = "totp-app";
-// const char* NVS_LANG_KEY = "language";
-// const char* NVS_TZ_OFFSET_KEY = "tz_offset";
-// const char* NVS_SVC_COUNT_KEY = "svc_count";
-// const char* NVS_SVC_NAME_PREFIX = "svc_";
-// const char* NVS_SVC_NAME_SUFFIX = "_n";
-// const char* NVS_SVC_SECRET_SUFFIX = "_s";
-
 extern const char* NVS_NAMESPACE;           
 extern const char* NVS_LANG_KEY;            
 extern const char* NVS_TZ_OFFSET_KEY;       
@@ -90,5 +87,14 @@ extern const char* NVS_SVC_COUNT_KEY;
 extern const char* NVS_SVC_NAME_PREFIX;     
 extern const char* NVS_SVC_NAME_SUFFIX;     
 extern const char* NVS_SVC_SECRET_SUFFIX;   
+// Novas chaves NVS para RFID e estado de bloqueio
+extern const char* NVS_LOCK_STATE_KEY;        // Chave para estado de bloqueio (true/false)
+extern const char* NVS_AUTH_CARD_COUNT_KEY; // Chave para número de cartões autorizados
+extern const char* NVS_AUTH_CARD_PREFIX;    // Prefixo para chaves de cartões autorizados (ex: "authcard_0")
+extern const char* NVS_LOCK_TIMEOUT_KEY;    // Chave para o valor do timeout de bloqueio em minutos
+// Novas chaves NVS para níveis de brilho
+extern const char* NVS_BRIGHTNESS_USB_KEY;
+extern const char* NVS_BRIGHTNESS_BATTERY_KEY;
+extern const char* NVS_BRIGHTNESS_DIMMED_KEY;
 
 #endif // CONFIG_H

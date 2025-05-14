@@ -26,6 +26,7 @@
  #include "ui_manager.h"     // Gerenciamento da Interface Gráfica (TFT)
  #include "input_handler.h"  // Gerenciamento de Entradas (Botões, Serial)
  #include "rfid_reader.h"    // Leitura RFID
+ #include "rfid_auth.h"      // Autenticação RFID
  
  // ---- SETUP ----
  void setup() {
@@ -39,11 +40,12 @@
      // 2. Inicializa Display e Sprites
      ui_init_display();
      ui_init_sprites();
-     // Mostra mensagem inicial enquanto carrega o resto
-     ui_change_screen(ScreenState::SCREEN_STARTUP, true);
- 
-     // 3. Inicializa Internacionalização (carrega idioma salvo)
+     
+     // 3. Inicializa Internacionalização (carrega idioma salvo) - MOVED EARLIER
      i18n_init(); // Define current_strings_ptr
+
+     // Mostra mensagem inicial enquanto carrega o resto - NOW USES INITIALIZED STRINGS
+     ui_change_screen(ScreenState::SCREEN_STARTUP, true);
  
      // 4. Inicializa RTC e Tempo (sincroniza TimeLib, carrega GMT offset)
      if (!time_init_rtc()) {
@@ -62,6 +64,7 @@
  
      // 6. Inicializa Leitor RFID
      rfid_init();
+     rfid_auth_init(); // Carrega cartões autorizados e estado de bloqueio do NVS
  
      // 7. Inicializa Gerenciador de Entradas (configura botões)
      input_init();
@@ -86,58 +89,99 @@
      last_interaction_time = millis();
      last_rtc_sync_time = millis();
      last_screen_update_time = 0; // Força atualização na primeira iteração do loop
- 
-     Serial.println("[SETUP] Inicialização concluída.");
+
+     input_init(); // Configura callbacks dos botões
+
+     last_interaction_time = millis(); 
+     last_lock_check_time = millis();  
+
+     // Define a tela inicial baseada no estado de bloqueio e se há cartões configurados
+     if (authorized_card_count == 0 && MAX_AUTHORIZED_CARDS > 0) { // MAX_AUTHORIZED_CARDS > 0 ensures card feature is enabled
+         Serial.println("[Setup] Nenhum cartão RFID autorizado. Indo para configuração do primeiro cartão.");
+         ui_change_screen(ScreenState::SCREEN_SETUP_FIRST_CARD);
+     } else if (is_locked) {
+         ui_change_screen(ScreenState::SCREEN_LOCKED);
+     } else if (service_count > 0) {
+         ui_change_screen(ScreenState::SCREEN_TOTP_VIEW);
+     } else {
+         ui_change_screen(ScreenState::SCREEN_MENU_MAIN);
+     }
+     Serial.println("[Setup] Concluído.");
  }
  
  // ---- LOOP PRINCIPAL ----
  void loop() {
-     uint32_t current_millis = millis();
+     uint32_t loop_start_millis = millis(); // Sample at loop start for general timing
      bool needs_dynamic_update = false; // Flag para indicar que elementos dinâmicos precisam ser redesenhados
  
      // 1. Processa Entradas (Botões, Serial, Timer da Tela de Mensagem)
-     input_tick();
+     input_tick(); // This can call ui_change_screen, which updates last_interaction_time
  
      // 2. Leitura RFID (Apenas na tela específica)
-     if (current_screen == ScreenState::SCREEN_READ_RFID) {
+     if (current_screen == ScreenState::SCREEN_LOCKED || 
+         current_screen == ScreenState::SCREEN_READ_RFID || 
+         current_screen == ScreenState::SCREEN_ADD_CARD_WAIT ||
+         current_screen == ScreenState::SCREEN_SETUP_FIRST_CARD) { // Enable RFID scanning for first card setup
          if (rfid_read_card()) {
-             // Cartão lido com sucesso, UID está em card_id.
-             // Força redesenho da tela RFID para mostrar o ID.
-             ui_draw_screen(false); // Redesenho parcial é suficiente
+             // rfid_on_card_present is called from within rfid_read_card
+             // which can call ui_change_screen, updating last_interaction_time
          }
      }
  
      // 3. Atualizações Periódicas baseadas em Tempo
-     if (current_millis - last_screen_update_time >= SCREEN_UPDATE_INTERVAL_MS) {
-         last_screen_update_time = current_millis;
-         needs_dynamic_update = true; // Indica que precisamos redesenhar elementos dinâmicos
- 
-         // Atualiza status da bateria
-         power_update_battery_status();
- 
-         // Atualiza código TOTP se estiver na tela correspondente
+     // Use loop_start_millis for these checks to be consistent within the iteration
+     if (loop_start_millis - last_screen_update_time >= SCREEN_UPDATE_INTERVAL_MS) {
+         needs_dynamic_update = true; 
+         power_update_battery_status(); // Reads ADC, relatively quick
          if (current_screen == ScreenState::SCREEN_TOTP_VIEW) {
-             totp_update_current_code(); // Gera novo código se necessário
+             totp_update_current_code(); 
          }
      }
  
      // 4. Sincronização com RTC (menos frequente)
-     if (current_millis - last_rtc_sync_time >= RTC_SYNC_INTERVAL_MS) {
-         last_rtc_sync_time = current_millis;
-         time_sync_from_rtc(); // Atualiza TimeLib a partir do RTC
+     if (loop_start_millis - last_rtc_sync_time >= RTC_SYNC_INTERVAL_MS) {
+         last_rtc_sync_time = loop_start_millis;
+         time_sync_from_rtc(); 
      }
  
-     // 5. Atualiza Brilho da Tela (verifica inatividade)
-     power_update_target_brightness(); // Aplica brilho DIMMED/BATTERY/USB
+     // 5. Atualiza Brilho da Tela (verifica inatividade using ::last_interaction_time)
+     power_update_target_brightness(); 
+
+     // --- Lock Check --- 
+     uint32_t check_time_millis = millis(); // Re-sample millis specifically for the lock check
+     uint32_t current_lock_timeout_ms = (uint32_t)temp_lock_timeout_minutes * 60 * 1000;
+     // Standard unsigned subtraction handles millis() rollover correctly for positive elapsed time.
+     uint32_t time_since_last_interaction = check_time_millis - last_interaction_time; 
+
+     if (!is_locked && (time_since_last_interaction > current_lock_timeout_ms)) {
+         // Add a small guard against extremely small current_lock_timeout_ms if it could be zero or near zero.
+         // However, temp_lock_timeout_minutes is constrained from 1 to 60, so timeout_ms will be at least 60000.
+         Serial.printf("[Lock] Inactivity Lock Triggered! check_time: %lu, last_interaction: %lu, diff: %lu, timeout: %lu\n", 
+                         check_time_millis, last_interaction_time, time_since_last_interaction, current_lock_timeout_ms);
+         is_locked = true;
+         rfid_auth_save_lock_state(true); 
+         ui_change_screen(ScreenState::SCREEN_LOCKED); // This will update last_interaction_time again
+     } else if (!is_locked) {
+         // Optional: Print when NOT locking to see the values periodically
+         // if (loop_start_millis % 5000 < LOOP_DELAY_MS) { // Print roughly every 5 seconds
+         //     Serial.printf("[Lock] Check (Not Locking): check_time: %lu, last_interaction: %lu, diff: %lu, timeout: %lu, is_locked: %d\n", 
+         //                 check_time_millis, last_interaction_time, time_since_last_interaction, current_lock_timeout_ms, is_locked);
+         // }
+     }
  
      // 6. Desenho da Tela
-     // Redesenha se houver animação de menu OU se uma atualização dinâmica ocorreu
+     // needs_dynamic_update is set if SCREEN_UPDATE_INTERVAL_MS has passed
      if (is_menu_animating || needs_dynamic_update) {
-         // ui_draw_screen(false) é chamado para atualizar apenas o conteúdo
-         // e os sprites dinâmicos (header, código totp, barra progresso).
-         // A função ui_draw_screen internamente chama as funções de atualização
-         // dos sprites necessários antes de desenhá-los.
-         ui_draw_screen(false);
+         if (!is_locked || 
+             current_screen == ScreenState::SCREEN_LOCKED || 
+             current_screen == ScreenState::SCREEN_MESSAGE || 
+             current_screen == ScreenState::SCREEN_SETUP_FIRST_CARD) { // Allow setup screen even if technically locked
+             ui_draw_screen(false); 
+         } else {
+             // If locked but not on an allowed screen (lock, message, setup), force to lock screen.
+             ui_change_screen(ScreenState::SCREEN_LOCKED);
+         }
+         last_screen_update_time = loop_start_millis; // Update after drawing, using loop_start_millis for consistency
      }
  
      // 7. Pequeno Delay

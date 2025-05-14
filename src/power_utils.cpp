@@ -2,6 +2,7 @@
 #include "power_utils.h"
 #include "globals.h"    // Acesso a battery_info, last_interaction_time, current_target_brightness
 #include "config.h"     // Acesso a constantes de pino, brilho, bateria, PWM
+#include "i18n.h"       // Add for getText
 #include <Arduino.h>    // Para pinMode, digitalWrite, analogRead, millis, ledc
 
 // Flag para saber se o LEDC foi configurado
@@ -53,6 +54,10 @@ void power_init() {
         Serial.println("[Power WARN] Pino PIN_LCD_BL não definido. Controle de brilho desabilitado.");
     #endif
     power_update_battery_status(); // Leitura inicial
+    power_load_brightness_settings(); // Carrega níveis de brilho salvos
+    current_target_brightness = BRIGHTNESS_MAX_LEVEL; // Começa com brilho máximo
+    power_set_screen_brightness(current_target_brightness); // Aplica brilho inicial
+    Serial.println("[Power] Gerenciamento de energia inicializado.");
 }
 
 // ---- Leitura da Bateria ----
@@ -120,12 +125,12 @@ void power_update_target_brightness() {
     uint8_t new_target_brightness;
 
     if (battery_info.is_usb_powered) {
-        new_target_brightness = BRIGHTNESS_USB;
+        new_target_brightness = brightness_usb_level; // Use NVS loaded value
     } else {
         if (millis() - last_interaction_time > INACTIVITY_TIMEOUT_MS) {
-            new_target_brightness = BRIGHTNESS_DIMMED;
+            new_target_brightness = brightness_dimmed_level; // Use NVS loaded value
         } else {
-            new_target_brightness = BRIGHTNESS_BATTERY;
+            new_target_brightness = brightness_battery_level; // Use NVS loaded value
         }
     }
 
@@ -133,4 +138,59 @@ void power_update_target_brightness() {
         current_target_brightness = new_target_brightness;
         power_set_screen_brightness(current_target_brightness);
     }
+}
+
+// ---- Novas Funções para Configuração de Brilho ----
+void power_load_brightness_settings() {
+    preferences.begin(NVS_NAMESPACE, true); // Read-only
+    brightness_usb_level = preferences.getUChar(NVS_BRIGHTNESS_USB_KEY, BRIGHTNESS_USB);
+    brightness_battery_level = preferences.getUChar(NVS_BRIGHTNESS_BATTERY_KEY, BRIGHTNESS_BATTERY);
+    brightness_dimmed_level = preferences.getUChar(NVS_BRIGHTNESS_DIMMED_KEY, BRIGHTNESS_DIMMED);
+    preferences.end();
+
+    // Ensure loaded values are within valid range (0-BRIGHTNESS_MAX_LEVEL)
+    brightness_usb_level = constrain(brightness_usb_level, 0, BRIGHTNESS_MAX_LEVEL);
+    brightness_battery_level = constrain(brightness_battery_level, 0, BRIGHTNESS_MAX_LEVEL);
+    brightness_dimmed_level = constrain(brightness_dimmed_level, 0, BRIGHTNESS_MAX_LEVEL);
+
+    Serial.printf("[Power] Brightness settings loaded: USB=%d, Battery=%d, Dimmed=%d\n", 
+                  brightness_usb_level, brightness_battery_level, brightness_dimmed_level);
+}
+
+void power_save_brightness_setting(BrightnessSettingToAdjust setting, uint8_t value) {
+    value = constrain(value, 0, BRIGHTNESS_MAX_LEVEL); // Ensure value is valid
+    const char* key = nullptr;
+    String setting_name_str = "Unknown";
+
+    preferences.begin(NVS_NAMESPACE, false); // Read-write
+    switch (setting) {
+        case BrightnessSettingToAdjust::USB:
+            key = NVS_BRIGHTNESS_USB_KEY;
+            brightness_usb_level = value;
+            setting_name_str = getText(StringID::STR_MENU_BRIGHTNESS_USB); // Get localized name for message
+            break;
+        case BrightnessSettingToAdjust::BATTERY:
+            key = NVS_BRIGHTNESS_BATTERY_KEY;
+            brightness_battery_level = value;
+            setting_name_str = getText(StringID::STR_MENU_BRIGHTNESS_BATTERY);
+            break;
+        case BrightnessSettingToAdjust::DIMMED:
+            key = NVS_BRIGHTNESS_DIMMED_KEY;
+            brightness_dimmed_level = value;
+            setting_name_str = getText(StringID::STR_MENU_BRIGHTNESS_DIMMED);
+            break;
+    }
+
+    if (key) {
+        if (preferences.putUChar(key, value)) {
+            Serial.printf("[Power] Brightness setting '%s' saved: %d\n", key, value);
+            // UI message will be queued by the input handler
+        } else {
+            Serial.printf("[Power ERROR] Failed to save brightness setting '%s' to NVS!\n", key);
+            // Optionally queue a UI error message
+        }
+    }
+    preferences.end();
+    // After saving, re-evaluate and apply the target brightness immediately
+    power_update_target_brightness(); 
 }
